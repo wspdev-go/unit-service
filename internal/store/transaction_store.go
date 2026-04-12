@@ -8,17 +8,17 @@ type Transaction interface {
 }
 
 type transaction struct {
-	cfg *config.Config
+	cfg *config.TransactionConfig
 }
 
-func NewTransaction(cfg *config.Config) Transaction {
+func NewTransaction(cfg *config.TransactionConfig) Transaction {
 	return transaction{
 		cfg: cfg,
 	}
 }
 
 func (t transaction) IsOpen() bool {
-	return t.cfg.TransactionDB != nil
+	return t.cfg != nil
 }
 
 func (t transaction) Close() error {

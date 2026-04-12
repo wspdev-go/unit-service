@@ -8,17 +8,17 @@ type Queue interface {
 }
 
 type queue struct {
-	cfg *config.Config
+	cfg *config.QueueConfig
 }
 
-func NewQueue(cfg *config.Config) Queue {
+func NewQueue(cfg *config.QueueConfig) Queue {
 	return queue{
 		cfg: cfg,
 	}
 }
 
 func (q queue) IsOpen() bool {
-	return q.cfg.QueueDB != nil
+	return q.cfg != nil
 }
 
 func (q queue) Close() error {

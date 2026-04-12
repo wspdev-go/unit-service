@@ -26,7 +26,7 @@ func (s store) GetReference() Reference {
 		return s.Reference
 	}
 
-	s.Reference = NewReference(s.cfg)
+	s.Reference = NewReference(s.cfg.ReferenceDB)
 
 	return s.Reference
 }
@@ -36,7 +36,7 @@ func (s store) GetQueue() Queue {
 		return s.Queue
 	}
 
-	s.Queue = NewQueue(s.cfg)
+	s.Queue = NewQueue(s.cfg.QueueDB)
 
 	return s.Queue
 }
@@ -46,7 +46,7 @@ func (s store) GetTransaction() Transaction {
 		s.Transaction = nil
 	}
 
-	s.Transaction = NewTransaction(s.cfg)
+	s.Transaction = NewTransaction(s.cfg.TransactionDB)
 
 	return s.Transaction
 }

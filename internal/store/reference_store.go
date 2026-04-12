@@ -8,17 +8,17 @@ type Reference interface {
 }
 
 type reference struct {
-	cfg *config.Config
+	cfg *config.ReferenceConfig
 }
 
-func NewReference(cfg *config.Config) Reference {
+func NewReference(cfg *config.ReferenceConfig) Reference {
 	return reference{
 		cfg: cfg,
 	}
 }
 
 func (r reference) IsOpen() bool {
-	return r.cfg.ReferenceDB != nil
+	return r.cfg != nil
 }
 
 func (r reference) Close() error {
