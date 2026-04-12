@@ -1,0 +1,33 @@
+reference-db:
+  "Host": "192.168.8.143"
+  "Port": 3306
+  "Username": "ss7dev"
+  "Password": "pass7dev"
+  "Database": "hstp"
+  "MaxCon": 2
+  "MaxIdleCon": 1
+  "DebugLog": true
+queue-db:
+  "Host": "192.168.8.143"
+  "Port": 6379
+  "Username": ""
+  "Password": ""
+  "MasterName": ""
+  "Addresses": []
+  "Database": 0
+  "PoolSize": 10
+  "MaxErrorBackoff": 3
+  "ScanRedisIntervalMs": 100
+transaction-db:
+  "Host": "192.168.8.143"
+  "Port": 18002
+  "Username": "default"
+  "Password": "dctest"
+  "Database": "cdr_dwh"
+  "HstpTableName": "cdr"
+  "SS7ProxyTableName": "cdr"
+  "DialTimeout": 10
+  "MaxOpenConns": 100
+  "MaxIdleConns": 100
+  "BatchSize": 1000
+  "BatchTimeout": 1
