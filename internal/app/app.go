@@ -22,7 +22,7 @@ func InitApp(configPath string) {
 	if storeTransaction == nil {
 		panic("Transaction store should be nil at initialization")
 	}
-	if !storeTransaction.IsOpen() {
+	if !storeTransaction.Open() {
 		panic("Transaction store should be open at initialization")
 	}
 	logger.Info("Transaction store is open and ready to use.")
@@ -31,7 +31,7 @@ func InitApp(configPath string) {
 	if storeQueue == nil {
 		panic("Queue store should be nil at initialization")
 	}
-	if !storeQueue.IsOpen() {
+	if !storeQueue.Open() {
 		panic("Queue store should be open at initialization")
 	}
 	logger.Info("Queue store is open and ready to use.")
@@ -40,7 +40,7 @@ func InitApp(configPath string) {
 	if storeReference == nil {
 		panic("Reference store should not be nil at initialization")
 	}
-	if !storeReference.IsOpen() {
+	if !storeReference.Open() {
 		panic("Reference store should be open at initialization")
 	}
 	logger.Info("Reference store is open and ready to use.")

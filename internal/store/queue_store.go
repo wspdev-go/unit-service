@@ -11,7 +11,7 @@ import (
 )
 
 type QueueStore interface {
-	IsOpen() bool
+	Open() bool
 	Close() error
 }
 
@@ -26,7 +26,7 @@ func NewQueue(cfg *config.QueueConfig) QueueStore {
 	}
 }
 
-func (q *queue) IsOpen() bool {
+func (q *queue) Open() bool {
 	if q.cfg.Host == "" {
 		return false
 	}

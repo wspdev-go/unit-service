@@ -10,7 +10,7 @@ import (
 )
 
 type ReferenceStore interface {
-	IsOpen() bool
+	Open() bool
 	Close() error
 }
 
@@ -34,7 +34,7 @@ func NewReference(cfg *config.ReferenceConfig) ReferenceStore {
 	}
 }
 
-func (r *reference) IsOpen() bool {
+func (r *reference) Open() bool {
 	var err error
 
 	if r.Conn != nil {

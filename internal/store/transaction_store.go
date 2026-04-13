@@ -11,7 +11,7 @@ import (
 )
 
 type TransactionStore interface {
-	IsOpen() bool
+	Open() bool
 	Close() error
 }
 
@@ -26,7 +26,7 @@ func NewTransaction(cfg *config.TransactionConfig) TransactionStore {
 	}
 }
 
-func (t *transaction) IsOpen() bool {
+func (t *transaction) Open() bool {
 	if t.cfg.Host == "" {
 		logger.Error("host is empty")
 		return false
