@@ -23,6 +23,10 @@ type reference struct {
 
 func NewReference(cfg *config.ReferenceConfig) ReferenceStore {
 
+	if cfg == nil {
+		return &reference{}
+	}
+
 	dbPort := fmt.Sprintf("%d", cfg.Port)
 
 	dsn := cfg.Username + ":" + cfg.Password +
@@ -36,21 +40,51 @@ func NewReference(cfg *config.ReferenceConfig) ReferenceStore {
 }
 
 func (r *reference) Open() bool {
-	var err error
-
 	if r.Conn != nil {
 		return true
 	}
 
-	r.Conn, err = gorm.Open(mysql.Open(r.dsn), &gorm.Config{})
+	if r.cfg == nil {
+		logger.Error("reference config is nil")
+		return false
+	}
+
+	if r.cfg.Host == "" {
+		logger.Error("reference host is empty")
+		return false
+	}
+
+	if r.cfg.Port == 0 {
+		logger.Error("reference port is empty")
+		return false
+	}
+
+	if r.cfg.Database == "" {
+		logger.Error("reference database is empty")
+		return false
+	}
+
+	if r.cfg.Username == "" {
+		logger.Error("reference username is empty")
+		return false
+	}
+
+	if r.cfg.Password == "" {
+		logger.Error("reference password is empty")
+		return false
+	}
+
+	conn, err := gorm.Open(mysql.Open(r.dsn), &gorm.Config{})
 	if err != nil {
 		logger.Error("Can't open gorm: %s", err)
 		return false
 	}
 
-	err = r.Ping()
-	if err != nil {
-		logger.Error("Can't ping gorm: %s", err)
+	r.Conn = conn
+
+	if err = r.Ping(); err != nil {
+		logger.Error("can't ping reference store: %s", err)
+		_ = r.Close()
 		return false
 	}
 
@@ -68,9 +102,9 @@ func (r *reference) Ping() error {
 		return err
 	}
 
-	err = sqlDB.Ping()
-	if err != nil {
-		logger.Error("Can't ping reference store: %s", err)
+	if err = sqlDB.Ping(); err != nil {
+		logger.Error("can't ping reference store: %s", err)
+		_ = r.Close()
 		return err
 	}
 
@@ -88,10 +122,13 @@ func (r *reference) Close() error {
 		logger.Error("Can't close reference store: %s", err)
 		return err
 	}
-	err = dbConn.Close()
-	if err != nil {
-		logger.Error("Can't close reference store: %s", err)
+
+	if err = dbConn.Close(); err != nil {
+		logger.Error("can't close reference store: %s", err)
+		return err
 	}
+	r.Conn = nil
+
 	logger.Info("Reference store closed successfully")
 	return nil
 }
