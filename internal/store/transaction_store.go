@@ -18,7 +18,7 @@ type TransactionStore interface {
 
 type transaction struct {
 	cfg  *config.TransactionConfig
-	Conn *clickhouse.Conn
+	Conn clickhouse.Conn
 }
 
 func NewTransaction(cfg *config.TransactionConfig) TransactionStore {
@@ -28,6 +28,16 @@ func NewTransaction(cfg *config.TransactionConfig) TransactionStore {
 }
 
 func (t *transaction) Open() bool {
+
+	if t.Conn != nil {
+		return true
+	}
+
+	if t.cfg == nil {
+		logger.Error("transaction config is nil")
+		return false
+	}
+
 	if t.cfg.Host == "" {
 		logger.Error("host is empty")
 		return false
@@ -76,12 +86,12 @@ func (t *transaction) Open() bool {
 		return false
 	}
 
-	t.Conn = &conn
+	t.Conn = conn
 
 	// Check if the connection is alive
-	err = t.Ping()
-	if err != nil {
+	if err = t.Ping(); err != nil {
 		logger.Error("clickhouse ping error: %v", err)
+		_ = t.Close()
 		return false
 	}
 
@@ -89,28 +99,30 @@ func (t *transaction) Open() bool {
 }
 
 func (t *transaction) Ping() error {
+	if t.Conn == nil {
+		return fmt.Errorf("transaction store is not open")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	err := (*t.Conn).Ping(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return t.Conn.Ping(ctx)
 
 }
 
 func (t *transaction) Close() error {
-	if t.Conn != nil {
+	if t.Conn == nil {
 		return nil
 	}
 
-	if err := (*t.Conn).Close(); err != nil {
+	if err := t.Conn.Close(); err != nil {
 		logger.Error("Failed to close Transaction connection: %s", err.Error())
-	} else {
-		logger.Info("Transaction connection closed")
+		return err
 	}
 
 	t.Conn = nil
+
+	logger.Info("close transaction successfully")
 
 	return nil
 }
