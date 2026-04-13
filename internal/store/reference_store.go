@@ -104,7 +104,6 @@ func (r *reference) Ping() error {
 
 	if err = sqlDB.Ping(); err != nil {
 		logger.Error("can't ping reference store: %s", err)
-		_ = r.Close()
 		return err
 	}
 

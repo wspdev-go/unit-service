@@ -85,6 +85,7 @@ func (q *queue) Close() error {
 		logger.Error("Failed to close Transaction connection: %s", err.Error())
 		return err
 	}
+	q.Client = nil
 
 	logger.Info("close queue successfully")
 	return nil
