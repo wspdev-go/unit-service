@@ -13,6 +13,7 @@ import (
 type QueueStore interface {
 	Open() bool
 	Close() error
+	Ping() error
 }
 
 type queue struct {
@@ -45,15 +46,21 @@ func (q *queue) Open() bool {
 		PoolSize: q.cfg.PoolSize,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	_, err := q.Client.Ping(ctx).Result()
-	cancel()
+	err := q.Ping()
 
 	if err != nil {
+		logger.Error("Failed to connect to queue: %s", err.Error())
 		return false
 	}
 
 	return true
+}
+
+func (q *queue) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := q.Client.Ping(ctx).Result()
+	return err
 }
 
 func (q *queue) Close() error {

@@ -12,6 +12,7 @@ import (
 type ReferenceStore interface {
 	Open() bool
 	Close() error
+	Ping() error
 }
 
 type reference struct {
@@ -46,7 +47,35 @@ func (r *reference) Open() bool {
 		logger.Error("Can't open gorm: %s", err)
 		return false
 	}
+
+	err = r.Ping()
+	if err != nil {
+		logger.Error("Can't ping gorm: %s", err)
+		return false
+	}
+
 	return true
+}
+
+func (r *reference) Ping() error {
+	if r.Conn == nil {
+		return fmt.Errorf("reference store is not open")
+	}
+
+	sqlDB, err := r.Conn.DB()
+	if err != nil {
+		logger.Error("Can't get sqlDB: %s", err)
+		return err
+	}
+
+	err = sqlDB.Ping()
+	if err != nil {
+		logger.Error("Can't ping reference store: %s", err)
+		return err
+	}
+
+	return nil
+
 }
 
 func (r *reference) Close() error {

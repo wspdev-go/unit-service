@@ -13,6 +13,7 @@ import (
 type TransactionStore interface {
 	Open() bool
 	Close() error
+	Ping() error
 }
 
 type transaction struct {
@@ -75,19 +76,27 @@ func (t *transaction) Open() bool {
 		return false
 	}
 
-	// Check if the connection is alive
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	err = conn.Ping(ctx)
-	cancel()
+	t.Conn = &conn
 
+	// Check if the connection is alive
+	err = t.Ping()
 	if err != nil {
 		logger.Error("clickhouse ping error: %v", err)
 		return false
 	}
 
-	t.Conn = &conn
-
 	return true
+}
+
+func (t *transaction) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err := (*t.Conn).Ping(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
 
 func (t *transaction) Close() error {
