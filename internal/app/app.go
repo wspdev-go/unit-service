@@ -27,6 +27,10 @@ func InitApp(configPath string) {
 	if storeQueue == nil {
 		panic("Queue store should be nil at initialization")
 	}
+	if !storeQueue.IsOpen() {
+		panic("Queue store should be open at initialization")
+	}
+	logger.Info("Queue store is open and ready to use.")
 
 	storeReference := store.GetReference()
 	if storeReference == nil {

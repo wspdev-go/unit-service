@@ -28,7 +28,8 @@ type QueueConfig struct {
 	Port     int    `yaml:"Port" json:"port"`
 	Username string `yaml:"Username" json:"username"`
 	Password string `yaml:"Password" json:"password"`
-	Database string `yaml:"Database" json:"database"`
+	Database int    `yaml:"Database" json:"database"`
+	PoolSize int    `yaml:"PoolSize" json:"poolSize"`
 }
 
 type TransactionConfig struct {
