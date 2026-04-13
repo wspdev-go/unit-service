@@ -28,6 +28,15 @@ func NewQueue(cfg *config.QueueConfig) QueueStore {
 }
 
 func (q *queue) Open() bool {
+	if q.Client != nil {
+		return true
+	}
+
+	if q.cfg == nil {
+		logger.Error("queue config is nil")
+		return false
+	}
+
 	if q.cfg.Host == "" {
 		return false
 	}
@@ -46,10 +55,9 @@ func (q *queue) Open() bool {
 		PoolSize: q.cfg.PoolSize,
 	})
 
-	err := q.Ping()
-
-	if err != nil {
-		logger.Error("Failed to connect to queue: %s", err.Error())
+	if err := q.Ping(); err != nil {
+		logger.Error("failed to connect to queue: %s", err.Error())
+		_ = q.Close()
 		return false
 	}
 
@@ -57,8 +65,13 @@ func (q *queue) Open() bool {
 }
 
 func (q *queue) Ping() error {
+	if q.Client == nil {
+		return fmt.Errorf("queue store is not open")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+
 	_, err := q.Client.Ping(ctx).Result()
 	return err
 }
@@ -71,8 +84,8 @@ func (q *queue) Close() error {
 	if err := q.Client.Close(); err != nil {
 		logger.Error("Failed to close Transaction connection: %s", err.Error())
 		return err
-	} else {
-		logger.Info("close queue successfully")
-		return nil
 	}
+
+	logger.Info("close queue successfully")
+	return nil
 }
