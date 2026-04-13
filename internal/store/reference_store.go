@@ -1,6 +1,12 @@
 package store
 
-import "unit-service/internal/config"
+import (
+	"fmt"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"unit-service/internal/config"
+	"unit-service/logger"
+)
 
 type Reference interface {
 	IsOpen() bool
@@ -8,17 +14,38 @@ type Reference interface {
 }
 
 type reference struct {
-	cfg *config.ReferenceConfig
+	cfg  *config.ReferenceConfig
+	dsn  string
+	Conn *gorm.DB
 }
 
 func NewReference(cfg *config.ReferenceConfig) Reference {
+
+	dbPort := fmt.Sprintf("%d", cfg.Port)
+
+	dsn := cfg.Username + ":" + cfg.Password +
+		"@tcp" + "(" + cfg.Host + ":" + dbPort + ")/" + cfg.Database +
+		"?" + "parseTime=true&loc=Local"
+
 	return reference{
 		cfg: cfg,
+		dsn: dsn,
 	}
 }
 
 func (r reference) IsOpen() bool {
-	return r.cfg != nil
+	var err error
+
+	if r.Conn != nil {
+		return true
+	}
+
+	r.Conn, err = gorm.Open(mysql.Open(r.dsn), &gorm.Config{})
+	if err != nil {
+		logger.Error("Can't open gorm: %s", err)
+		return false
+	}
+	return true
 }
 
 func (r reference) Close() error {

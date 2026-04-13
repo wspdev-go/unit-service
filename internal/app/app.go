@@ -32,7 +32,10 @@ func InitApp(configPath string) {
 	if storeReference == nil {
 		panic("Reference store should not be nil at initialization")
 	}
-
+	if storeReference.IsOpen() {
+		panic("Reference store should be open at initialization")
+	}
+	logger.Info("Reference store is open and ready to use.")
 }
 
 func RunApp() {
