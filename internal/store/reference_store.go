@@ -50,5 +50,19 @@ func (r reference) IsOpen() bool {
 }
 
 func (r reference) Close() error {
+	if r.Conn == nil {
+		return nil
+	}
+
+	dbConn, err := r.Conn.DB()
+	if err != nil {
+		logger.Error("Can't close reference store: %s", err)
+		return err
+	}
+	err = dbConn.Close()
+	if err != nil {
+		logger.Error("Can't close reference store: %s", err)
+	}
+	logger.Info("Reference store closed successfully")
 	return nil
 }

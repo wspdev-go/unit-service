@@ -91,5 +91,17 @@ func (t transaction) IsOpen() bool {
 }
 
 func (t transaction) Close() error {
+	if t.Conn != nil {
+		return nil
+	}
+
+	if err := (*t.Conn).Close(); err != nil {
+		logger.Error("Failed to close Transaction connection: %s", err.Error())
+	} else {
+		logger.Info("Transaction connection closed")
+	}
+
+	t.Conn = nil
+
 	return nil
 }

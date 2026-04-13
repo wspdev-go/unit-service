@@ -43,7 +43,7 @@ func (s store) GetQueue() QueueStore {
 
 func (s store) GetTransaction() TransactionStore {
 	if s.Transaction != nil {
-		s.Transaction = nil
+		return s.Transaction
 	}
 
 	s.Transaction = NewTransaction(s.cfg.TransactionDB)

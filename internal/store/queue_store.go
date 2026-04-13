@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 	"unit-service/internal/config"
+	"unit-service/logger"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -56,5 +57,15 @@ func (q queue) IsOpen() bool {
 }
 
 func (q queue) Close() error {
-	return nil
+	if q.Client == nil {
+		return nil
+	}
+
+	if err := q.Client.Close(); err != nil {
+		logger.Error("Failed to close Transaction connection: %s", err.Error())
+		return err
+	} else {
+		logger.Info("close queue successfully")
+		return nil
+	}
 }
