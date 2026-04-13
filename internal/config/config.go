@@ -33,11 +33,14 @@ type QueueConfig struct {
 }
 
 type TransactionConfig struct {
-	Host     string `yaml:"Host" json:"host"`
-	Port     int    `yaml:"Port" json:"port"`
-	Username string `yaml:"Username" json:"username"`
-	Password string `yaml:"Password" json:"password"`
-	Database string `yaml:"Database" json:"database"`
+	Host         string `yaml:"Host" json:"host"`
+	Port         int    `yaml:"Port" json:"port"`
+	Username     string `yaml:"Username" json:"username"`
+	Password     string `yaml:"Password" json:"password"`
+	Database     string `yaml:"Database" json:"database"`
+	DialTimeout  int    `yaml:"DialTimeout" json:"dialTimeout"`
+	MaxOpenConns int    `yaml:"MaxOpenConns" json:"maxOpenConns"`
+	MaxIdleConns int    `yaml:"MaxIdleConns" json:"maxIdleConns"`
 }
 
 func GetConfig(configPath string) (*Config, error) {

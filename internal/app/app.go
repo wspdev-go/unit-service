@@ -22,6 +22,10 @@ func InitApp(configPath string) {
 	if storeTransaction == nil {
 		panic("Transaction store should be nil at initialization")
 	}
+	if !storeTransaction.IsOpen() {
+		panic("Transaction store should be open at initialization")
+	}
+	logger.Info("Transaction store is open and ready to use.")
 
 	storeQueue := store.GetQueue()
 	if storeQueue == nil {
