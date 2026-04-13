@@ -31,5 +31,21 @@ func main() {
 		trace.Start(f)
 		defer trace.Stop()
 	}
-	app.InitApp(configPath)
+
+	application, err := app.NewApp(configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err = application.OpenConnections(); err != nil {
+		log.Fatal(err)
+	}
+	
+	defer func() {
+		if err = application.CloseConnections(); err != nil {
+			log.Printf("close connections: %v", err)
+		}
+	}()
+
+	app.RunApp()
 }
