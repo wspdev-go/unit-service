@@ -16,12 +16,12 @@ type store struct {
 }
 
 func NewStore(cfg *config.Config) Store {
-	return store{
+	return &store{
 		cfg: cfg,
 	}
 }
 
-func (s store) GetReference() ReferenceStore {
+func (s *store) GetReference() ReferenceStore {
 	if s.Reference != nil {
 		return s.Reference
 	}
@@ -31,7 +31,7 @@ func (s store) GetReference() ReferenceStore {
 	return s.Reference
 }
 
-func (s store) GetQueue() QueueStore {
+func (s *store) GetQueue() QueueStore {
 	if s.Queue != nil {
 		return s.Queue
 	}
@@ -41,7 +41,7 @@ func (s store) GetQueue() QueueStore {
 	return s.Queue
 }
 
-func (s store) GetTransaction() TransactionStore {
+func (s *store) GetTransaction() TransactionStore {
 	if s.Transaction != nil {
 		return s.Transaction
 	}
