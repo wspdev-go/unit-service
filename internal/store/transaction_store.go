@@ -10,7 +10,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
-type Transaction interface {
+type TransactionStore interface {
 	IsOpen() bool
 	Close() error
 }
@@ -20,7 +20,7 @@ type transaction struct {
 	Conn *clickhouse.Conn
 }
 
-func NewTransaction(cfg *config.TransactionConfig) Transaction {
+func NewTransaction(cfg *config.TransactionConfig) TransactionStore {
 	return transaction{
 		cfg: cfg,
 	}

@@ -9,7 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type Queue interface {
+type QueueStore interface {
 	IsOpen() bool
 	Close() error
 }
@@ -19,7 +19,7 @@ type queue struct {
 	Client *redis.Client
 }
 
-func NewQueue(cfg *config.QueueConfig) Queue {
+func NewQueue(cfg *config.QueueConfig) QueueStore {
 	return queue{
 		cfg: cfg,
 	}

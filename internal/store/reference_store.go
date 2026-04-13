@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Reference interface {
+type ReferenceStore interface {
 	IsOpen() bool
 	Close() error
 }
@@ -20,7 +20,7 @@ type reference struct {
 	Conn *gorm.DB
 }
 
-func NewReference(cfg *config.ReferenceConfig) Reference {
+func NewReference(cfg *config.ReferenceConfig) ReferenceStore {
 
 	dbPort := fmt.Sprintf("%d", cfg.Port)
 

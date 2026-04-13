@@ -3,16 +3,16 @@ package store
 import "unit-service/internal/config"
 
 type Store interface {
-	GetReference() Reference
-	GetQueue() Queue
-	GetTransaction() Transaction
+	GetReference() ReferenceStore
+	GetQueue() QueueStore
+	GetTransaction() TransactionStore
 }
 
 type store struct {
 	cfg         *config.Config
-	Reference   Reference
-	Queue       Queue
-	Transaction Transaction
+	Reference   ReferenceStore
+	Queue       QueueStore
+	Transaction TransactionStore
 }
 
 func NewStore(cfg *config.Config) Store {
@@ -21,7 +21,7 @@ func NewStore(cfg *config.Config) Store {
 	}
 }
 
-func (s store) GetReference() Reference {
+func (s store) GetReference() ReferenceStore {
 	if s.Reference != nil {
 		return s.Reference
 	}
@@ -31,7 +31,7 @@ func (s store) GetReference() Reference {
 	return s.Reference
 }
 
-func (s store) GetQueue() Queue {
+func (s store) GetQueue() QueueStore {
 	if s.Queue != nil {
 		return s.Queue
 	}
@@ -41,7 +41,7 @@ func (s store) GetQueue() Queue {
 	return s.Queue
 }
 
-func (s store) GetTransaction() Transaction {
+func (s store) GetTransaction() TransactionStore {
 	if s.Transaction != nil {
 		s.Transaction = nil
 	}
