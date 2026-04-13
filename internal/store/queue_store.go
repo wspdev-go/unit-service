@@ -21,12 +21,12 @@ type queue struct {
 }
 
 func NewQueue(cfg *config.QueueConfig) QueueStore {
-	return queue{
+	return &queue{
 		cfg: cfg,
 	}
 }
 
-func (q queue) IsOpen() bool {
+func (q *queue) IsOpen() bool {
 	if q.cfg.Host == "" {
 		return false
 	}
@@ -56,7 +56,7 @@ func (q queue) IsOpen() bool {
 	return true
 }
 
-func (q queue) Close() error {
+func (q *queue) Close() error {
 	if q.Client == nil {
 		return nil
 	}

@@ -28,13 +28,13 @@ func NewReference(cfg *config.ReferenceConfig) ReferenceStore {
 		"@tcp" + "(" + cfg.Host + ":" + dbPort + ")/" + cfg.Database +
 		"?" + "parseTime=true&loc=Local"
 
-	return reference{
+	return &reference{
 		cfg: cfg,
 		dsn: dsn,
 	}
 }
 
-func (r reference) IsOpen() bool {
+func (r *reference) IsOpen() bool {
 	var err error
 
 	if r.Conn != nil {
@@ -49,7 +49,7 @@ func (r reference) IsOpen() bool {
 	return true
 }
 
-func (r reference) Close() error {
+func (r *reference) Close() error {
 	if r.Conn == nil {
 		return nil
 	}

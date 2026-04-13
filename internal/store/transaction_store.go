@@ -21,12 +21,12 @@ type transaction struct {
 }
 
 func NewTransaction(cfg *config.TransactionConfig) TransactionStore {
-	return transaction{
+	return &transaction{
 		cfg: cfg,
 	}
 }
 
-func (t transaction) IsOpen() bool {
+func (t *transaction) IsOpen() bool {
 	if t.cfg.Host == "" {
 		logger.Error("host is empty")
 		return false
@@ -90,7 +90,7 @@ func (t transaction) IsOpen() bool {
 	return true
 }
 
-func (t transaction) Close() error {
+func (t *transaction) Close() error {
 	if t.Conn != nil {
 		return nil
 	}
