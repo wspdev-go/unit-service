@@ -2,10 +2,11 @@ package store
 
 import (
 	"fmt"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 	"unit-service/internal/config"
 	"unit-service/logger"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 type Reference interface {

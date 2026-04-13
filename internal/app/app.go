@@ -19,12 +19,12 @@ func InitApp(configPath string) {
 	store := store.NewStore(cfg)
 
 	storeTransaction := store.GetTransaction()
-	if storeTransaction != nil {
+	if storeTransaction == nil {
 		panic("Transaction store should be nil at initialization")
 	}
 
 	storeQueue := store.GetQueue()
-	if storeQueue != nil {
+	if storeQueue == nil {
 		panic("Queue store should be nil at initialization")
 	}
 
@@ -32,7 +32,7 @@ func InitApp(configPath string) {
 	if storeReference == nil {
 		panic("Reference store should not be nil at initialization")
 	}
-	if storeReference.IsOpen() {
+	if !storeReference.IsOpen() {
 		panic("Reference store should be open at initialization")
 	}
 	logger.Info("Reference store is open and ready to use.")
