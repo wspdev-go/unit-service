@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"unit-service/internal/config"
+	"unit-service/internal/repository"
 	"unit-service/internal/store"
 	"unit-service/logger"
 )
@@ -10,6 +11,7 @@ import (
 type App struct {
 	Config *config.Config
 	Store  store.Store
+	Repo   repository.Repository
 }
 
 func NewApp(configPath string) (*App, error) {
@@ -22,9 +24,12 @@ func NewApp(configPath string) (*App, error) {
 
 	st := store.NewStore(cfg)
 
+	repo := repository.NewRepository(st)
+
 	return &App{
 		Config: cfg,
 		Store:  st,
+		Repo:   repo,
 	}, nil
 }
 
