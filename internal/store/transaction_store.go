@@ -14,11 +14,12 @@ type TransactionStore interface {
 	Open() bool
 	Close() error
 	Ping() error
+	Conn() clickhouse.Conn
 }
 
 type transaction struct {
 	cfg  *config.TransactionConfig
-	Conn clickhouse.Conn
+	conn clickhouse.Conn
 }
 
 func NewTransaction(cfg *config.TransactionConfig) TransactionStore {
@@ -86,7 +87,7 @@ func (t *transaction) Open() bool {
 		return false
 	}
 
-	t.Conn = conn
+	t.conn = conn
 
 	// Check if the connection is alive
 	if err = t.Ping(); err != nil {
@@ -106,23 +107,27 @@ func (t *transaction) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return t.Conn.Ping(ctx)
+	return t.conn.Ping(ctx)
 
 }
 
 func (t *transaction) Close() error {
-	if t.Conn == nil {
+	if t.conn == nil {
 		return nil
 	}
 
-	if err := t.Conn.Close(); err != nil {
+	if err := t.conn.Close(); err != nil {
 		logger.Error("Failed to close Transaction connection: %s", err.Error())
 		return err
 	}
 
-	t.Conn = nil
+	t.conn = nil
 
 	logger.Info("close transaction successfully")
 
 	return nil
+}
+
+func (t *transaction) Conn() clickhouse.Conn {
+	return t.conn
 }

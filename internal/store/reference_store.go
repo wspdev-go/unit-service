@@ -13,12 +13,13 @@ type ReferenceStore interface {
 	Open() bool
 	Close() error
 	Ping() error
+	DB() *gorm.DB
 }
 
 type reference struct {
-	cfg  *config.ReferenceConfig
-	dsn  string
-	Conn *gorm.DB
+	cfg *config.ReferenceConfig
+	dsn string
+	db  *gorm.DB
 }
 
 func NewReference(cfg *config.ReferenceConfig) ReferenceStore {
@@ -40,7 +41,7 @@ func NewReference(cfg *config.ReferenceConfig) ReferenceStore {
 }
 
 func (r *reference) Open() bool {
-	if r.Conn != nil {
+	if r.db != nil {
 		return true
 	}
 
@@ -74,13 +75,13 @@ func (r *reference) Open() bool {
 		return false
 	}
 
-	conn, err := gorm.Open(mysql.Open(r.dsn), &gorm.Config{})
+	gormDB, err := gorm.Open(mysql.Open(r.dsn), &gorm.Config{})
 	if err != nil {
 		logger.Error("Can't open gorm: %s", err)
 		return false
 	}
 
-	r.Conn = conn
+	r.db = gormDB
 
 	if err = r.Ping(); err != nil {
 		logger.Error("can't ping reference store: %s", err)
@@ -92,11 +93,11 @@ func (r *reference) Open() bool {
 }
 
 func (r *reference) Ping() error {
-	if r.Conn == nil {
+	if r.db == nil {
 		return fmt.Errorf("reference store is not open")
 	}
 
-	sqlDB, err := r.Conn.DB()
+	sqlDB, err := r.db.DB()
 	if err != nil {
 		logger.Error("Can't get sqlDB: %s", err)
 		return err
@@ -112,11 +113,11 @@ func (r *reference) Ping() error {
 }
 
 func (r *reference) Close() error {
-	if r.Conn == nil {
+	if r.db == nil {
 		return nil
 	}
 
-	dbConn, err := r.Conn.DB()
+	dbConn, err := r.db.DB()
 	if err != nil {
 		logger.Error("Can't close reference store: %s", err)
 		return err
@@ -126,8 +127,12 @@ func (r *reference) Close() error {
 		logger.Error("can't close reference store: %s", err)
 		return err
 	}
-	r.Conn = nil
+	r.db = nil
 
 	logger.Info("Reference store closed successfully")
 	return nil
+}
+
+func (r *reference) DB() *gorm.DB {
+	return r.db
 }

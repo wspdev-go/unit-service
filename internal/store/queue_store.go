@@ -14,11 +14,12 @@ type QueueStore interface {
 	Open() bool
 	Close() error
 	Ping() error
+	Client() *redis.Client
 }
 
 type queue struct {
 	cfg    *config.QueueConfig
-	Client *redis.Client
+	client *redis.Client
 }
 
 func NewQueue(cfg *config.QueueConfig) QueueStore {
@@ -47,7 +48,7 @@ func (q *queue) Open() bool {
 
 	redisAddr := fmt.Sprintf("%s:%d", q.cfg.Host, q.cfg.Port)
 
-	q.Client = redis.NewClient(&redis.Options{
+	q.client = redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Username: q.cfg.Username,
 		Password: q.cfg.Password,
@@ -65,28 +66,32 @@ func (q *queue) Open() bool {
 }
 
 func (q *queue) Ping() error {
-	if q.Client == nil {
+	if q.client == nil {
 		return fmt.Errorf("queue store is not open")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := q.Client.Ping(ctx).Result()
+	_, err := q.client.Ping(ctx).Result()
 	return err
 }
 
 func (q *queue) Close() error {
-	if q.Client == nil {
+	if q.client == nil {
 		return nil
 	}
 
-	if err := q.Client.Close(); err != nil {
+	if err := q.client.Close(); err != nil {
 		logger.Error("Failed to close Transaction connection: %s", err.Error())
 		return err
 	}
-	q.Client = nil
+	q.client = nil
 
 	logger.Info("close queue successfully")
 	return nil
+}
+
+func (q *queue) Client() *redis.Client {
+	return q.client
 }
