@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 	"unit-service/internal/config"
@@ -11,7 +12,7 @@ import (
 )
 
 type TransactionStore interface {
-	Open() bool
+	Open() error
 	Close() error
 	Ping() error
 	Conn() clickhouse.Conn
@@ -28,40 +29,34 @@ func NewTransaction(cfg *config.TransactionConfig) TransactionStore {
 	}
 }
 
-func (t *transaction) Open() bool {
+func (t *transaction) Open() error {
 
 	if t.conn != nil {
-		return true
+		return nil
 	}
 
 	if t.cfg == nil {
-		logger.Error("transaction config is nil")
-		return false
+		return errors.New("config is nil")
 	}
 
 	if t.cfg.Host == "" {
-		logger.Error("host is empty")
-		return false
+		return errors.New("host is empty")
 	}
 
 	if t.cfg.Port == 0 {
-		logger.Error("port is empty")
-		return false
+		return errors.New("port is empty")
 	}
 
 	if t.cfg.Database == "" {
-		logger.Error("dbName is empty")
-		return false
+		return errors.New("database is empty")
 	}
 
 	if t.cfg.Username == "" {
-		logger.Error("username is empty")
-		return false
+		return errors.New("username is empty")
 	}
 
 	if t.cfg.Password == "" {
-		logger.Error("password is empty")
-		return false
+		return errors.New("password is empty")
 	}
 
 	connAdr := fmt.Sprintf("%s:%d", t.cfg.Host, t.cfg.Port)
@@ -84,7 +79,7 @@ func (t *transaction) Open() bool {
 
 	if err != nil {
 		logger.Error("open clickhouse connection error: %v", err)
-		return false
+		return err
 	}
 
 	t.conn = conn
@@ -93,10 +88,10 @@ func (t *transaction) Open() bool {
 	if err = t.Ping(); err != nil {
 		logger.Error("clickhouse ping error: %v", err)
 		_ = t.Close()
-		return false
+		return err
 	}
 
-	return true
+	return nil
 }
 
 func (t *transaction) Ping() error {

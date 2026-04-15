@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"unit-service/internal/config"
 	"unit-service/logger"
@@ -10,7 +11,7 @@ import (
 )
 
 type ReferenceStore interface {
-	Open() bool
+	Open() error
 	Close() error
 	Ping() error
 	DB() *gorm.DB
@@ -40,45 +41,45 @@ func NewReference(cfg *config.ReferenceConfig) ReferenceStore {
 	}
 }
 
-func (r *reference) Open() bool {
+func (r *reference) Open() error {
 	if r.db != nil {
-		return true
+		return nil
 	}
 
 	if r.cfg == nil {
 		logger.Error("reference config is nil")
-		return false
+		return errors.New("reference config is nil")
 	}
 
 	if r.cfg.Host == "" {
 		logger.Error("reference host is empty")
-		return false
+		return errors.New("reference host is empty")
 	}
 
 	if r.cfg.Port == 0 {
 		logger.Error("reference port is empty")
-		return false
+		return errors.New("reference port is empty")
 	}
 
 	if r.cfg.Database == "" {
 		logger.Error("reference database is empty")
-		return false
+		return errors.New("reference database is empty")
 	}
 
 	if r.cfg.Username == "" {
 		logger.Error("reference username is empty")
-		return false
+		return errors.New("reference username is empty")
 	}
 
 	if r.cfg.Password == "" {
 		logger.Error("reference password is empty")
-		return false
+		return errors.New("reference password is empty")
 	}
 
 	gormDB, err := gorm.Open(mysql.Open(r.dsn), &gorm.Config{})
 	if err != nil {
 		logger.Error("Can't open gorm: %s", err)
-		return false
+		return err
 	}
 
 	r.db = gormDB
@@ -86,10 +87,10 @@ func (r *reference) Open() bool {
 	if err = r.Ping(); err != nil {
 		logger.Error("can't ping reference store: %s", err)
 		_ = r.Close()
-		return false
+		return err
 	}
 
-	return true
+	return nil
 }
 
 func (r *reference) Ping() error {

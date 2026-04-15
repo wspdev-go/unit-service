@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 	"unit-service/internal/config"
@@ -11,7 +12,7 @@ import (
 )
 
 type QueueStore interface {
-	Open() bool
+	Open() error
 	Close() error
 	Ping() error
 	Client() *redis.Client
@@ -28,22 +29,21 @@ func NewQueue(cfg *config.QueueConfig) QueueStore {
 	}
 }
 
-func (q *queue) Open() bool {
+func (q *queue) Open() error {
 	if q.client != nil {
-		return true
+		return nil
 	}
 
 	if q.cfg == nil {
-		logger.Error("queue config is nil")
-		return false
+		return errors.New("queue config is nil")
 	}
 
 	if q.cfg.Host == "" {
-		return false
+		return errors.New("host is empty")
 	}
 
 	if q.cfg.Port == 0 {
-		return false
+		return errors.New("port is empty")
 	}
 
 	redisAddr := fmt.Sprintf("%s:%d", q.cfg.Host, q.cfg.Port)
@@ -59,10 +59,10 @@ func (q *queue) Open() bool {
 	if err := q.Ping(); err != nil {
 		logger.Error("failed to connect to queue: %s", err.Error())
 		_ = q.Close()
-		return false
+		return err
 	}
 
-	return true
+	return nil
 }
 
 func (q *queue) Ping() error {

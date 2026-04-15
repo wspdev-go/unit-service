@@ -37,12 +37,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err = application.OpenConnections(); err != nil {
+	requiredDeps := []app.Dependency{
+		app.DepReference,
+		app.DepQueue,
+		app.DepTransaction,
+	}
+
+	if err = application.OpenConnections(requiredDeps...); err != nil {
 		log.Fatal(err)
 	}
-	
+
 	defer func() {
-		if err = application.CloseConnections(); err != nil {
+		if err := application.CloseConnections(requiredDeps...); err != nil {
 			log.Printf("close connections: %v", err)
 		}
 	}()
