@@ -24,12 +24,14 @@ type ReferenceConfig struct {
 }
 
 type QueueConfig struct {
-	Host     string `yaml:"Host" json:"host"`
-	Port     int    `yaml:"Port" json:"port"`
-	Username string `yaml:"Username" json:"username"`
-	Password string `yaml:"Password" json:"password"`
-	Database int    `yaml:"Database" json:"database"`
-	PoolSize int    `yaml:"PoolSize" json:"poolSize"`
+	Host       string   `yaml:"Host" json:"host"`
+	Port       int      `yaml:"Port" json:"port"`
+	Username   string   `yaml:"Username" json:"username"`
+	Password   string   `yaml:"Password" json:"password"`
+	Database   int      `yaml:"Database" json:"database"`
+	PoolSize   int      `yaml:"PoolSize" json:"poolSize"`
+	MasterName string   `yaml:"MasterName,omitempty" json:"masterName,omitempty"`
+	Addresses  []string `yaml:"Addresses,omitempty" json:"addresses,omitempty"`
 }
 
 type TransactionConfig struct {

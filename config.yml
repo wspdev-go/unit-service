@@ -4,9 +4,6 @@ reference-db:
   "Username": "undev"
   "Password": "unpass"
   "Database": "mydb"
-  "MaxCon": 2
-  "MaxIdleCon": 1
-  "DebugLog": true
 queue-db:
   "Host": "192.168.8.143"
   "Port": 6379
@@ -16,8 +13,6 @@ queue-db:
   "Addresses": []
   "Database": 0
   "PoolSize": 10
-  "MaxErrorBackoff": 3
-  "ScanRedisIntervalMs": 100
 transaction-db:
   "Host": "192.168.8.143"
   "Port": 9000
@@ -27,5 +22,3 @@ transaction-db:
   "DialTimeout": 10
   "MaxOpenConns": 100
   "MaxIdleConns": 100
-  "BatchSize": 1000
-  "BatchTimeout": 1
