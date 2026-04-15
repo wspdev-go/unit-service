@@ -42,7 +42,7 @@ func (a *App) openTransaction() error {
 		return fmt.Errorf("transaction store is nil")
 	}
 	if err := transaction.Open(); err != nil {
-		return fmt.Errorf("open transaction store")
+		return err
 	}
 
 	logger.Info("Transaction store is open and ready to use.")
