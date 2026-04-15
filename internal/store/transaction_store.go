@@ -30,7 +30,7 @@ func NewTransaction(cfg *config.TransactionConfig) TransactionStore {
 
 func (t *transaction) Open() bool {
 
-	if t.Conn != nil {
+	if t.conn != nil {
 		return true
 	}
 
@@ -100,7 +100,7 @@ func (t *transaction) Open() bool {
 }
 
 func (t *transaction) Ping() error {
-	if t.Conn == nil {
+	if t.conn == nil {
 		return fmt.Errorf("transaction store is not open")
 	}
 

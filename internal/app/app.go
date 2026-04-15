@@ -34,6 +34,7 @@ func NewApp(configPath string) (*App, error) {
 }
 
 func (a *App) OpenConnections() error {
+
 	transaction := a.Store.GetTransaction()
 	if transaction == nil {
 		return fmt.Errorf("transaction store is nil")

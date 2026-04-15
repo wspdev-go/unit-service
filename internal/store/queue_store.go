@@ -29,7 +29,7 @@ func NewQueue(cfg *config.QueueConfig) QueueStore {
 }
 
 func (q *queue) Open() bool {
-	if q.Client != nil {
+	if q.client != nil {
 		return true
 	}
 
