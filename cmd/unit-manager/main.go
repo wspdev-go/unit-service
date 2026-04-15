@@ -43,12 +43,12 @@ func main() {
 		app.DepTransaction,
 	}
 
-	if err = application.OpenConnections(requiredDeps...); err != nil {
+	if err = application.RunDependency(requiredDeps...); err != nil {
 		log.Fatal(err)
 	}
 
 	defer func() {
-		if err := application.CloseConnections(requiredDeps...); err != nil {
+		if err := application.StopDependency(requiredDeps...); err != nil {
 			log.Printf("close connections: %v", err)
 		}
 	}()
