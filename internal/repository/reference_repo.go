@@ -21,5 +21,10 @@ type referenceRepo struct {
 
 func (r *referenceRepo) GetSctpConnList() ([]dao.SctpConn, error) {
 	sctpConnList := make([]dao.SctpConn, 0)
+
+	if err := r.store.DB().Find(&sctpConnList).Where("is_enable = 1").Error; err != nil {
+		return nil, err
+	}
+
 	return sctpConnList, nil
 }

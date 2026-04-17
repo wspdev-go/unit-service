@@ -5,6 +5,7 @@ import (
 	"unit-service/internal/config"
 	"unit-service/internal/repository"
 	"unit-service/internal/store"
+	"unit-service/internal/usecase"
 	"unit-service/logger"
 )
 
@@ -33,7 +34,15 @@ func NewApp(configPath string) (*App, error) {
 	}, nil
 }
 
-func RunApp() {
+func (a *App) RunApp() {
 	// Start the application logic here
 	// This function can be used to run the main application loop, handle requests, etc.
+
+	uc := usecase.NewUsecase(a.Repo)
+
+	refUc := uc.GetReferenceUsecase()
+
+	if err := refUc.Run(); err != nil {
+		logger.Error("Error running reference use case: %v", err)
+	}
 }
