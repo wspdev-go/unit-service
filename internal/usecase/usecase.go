@@ -7,8 +7,10 @@ type Usecase interface {
 }
 
 type usecase struct {
-	repo      repository.Repository
-	reference ReferenceUsecase
+	repo        repository.Repository
+	reference   ReferenceUsecase
+	transaction TransactionUsecase
+	queue       QueueUsecase
 }
 
 func NewUsecase(repo repository.Repository) Usecase {
@@ -24,4 +26,24 @@ func (u *usecase) GetReferenceUsecase() ReferenceUsecase {
 
 	return u.reference
 
+}
+
+func (u *usecase) GetTransactionUsecase() TransactionUsecase {
+	if u.transaction != nil {
+		return u.transaction
+	}
+
+	u.transaction = NewTransactionUsecase(u.repo.GetTransaction())
+
+	return u.transaction
+}
+
+func (u *usecase) GetQueueUsecase() QueueUsecase {
+	if u.queue != nil {
+		return u.queue
+	}
+
+	u.queue = NewQueueUsecase(u.repo.GetQueue())
+
+	return u.queue
 }
