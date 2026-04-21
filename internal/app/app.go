@@ -45,4 +45,5 @@ func (a *App) RunApp() {
 	if err := refUc.Run(); err != nil {
 		logger.Error("Error running reference use case: %v", err)
 	}
+
 }

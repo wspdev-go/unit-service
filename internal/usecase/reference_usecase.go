@@ -12,8 +12,10 @@ type ReferenceUsecase interface {
 }
 
 type referenceUsecase struct {
-	repo         repository.ReferenceRepo
-	sctpConnList map[int]dto.SctpConn
+	repo            repository.ReferenceRepo
+	sctpConnList    map[int]dto.SctpConn
+	m3uaAsConnList  map[int]dto.M3UaAsConn
+	m3uaAspLinkList map[int]dto.M3UaAspLink
 }
 
 func NewReferenceUsecase(repo repository.ReferenceRepo) ReferenceUsecase {
@@ -27,6 +29,18 @@ func (u *referenceUsecase) Run() error {
 		return err
 	} else if len(u.sctpConnList) == 0 {
 		return errors.New("sctp conn list is empty")
+	}
+
+	if err := u.GetM3UaAsConnList(); err != nil {
+		return err
+	} else if len(u.m3uaAsConnList) == 0 {
+		return errors.New("m3ua_as conn list is empty")
+	}
+
+	if err := u.GetM3UaAspLinkList(); err != nil {
+		return err
+	} else if len(u.m3uaAspLinkList) == 0 {
+		return errors.New("m3ua_asp link list is empty")
 	}
 
 	return nil
@@ -65,6 +79,68 @@ func (u *referenceUsecase) GetSctpConnList() error {
 			WriteBufferSize:    sctpConn.WriteBufferSize,
 		}
 		u.sctpConnList[conn.ID] = conn
+	}
+
+	return nil
+}
+
+func (u *referenceUsecase) GetM3UaAsConnList() error {
+	m3uaAsConnList, err := u.repo.GetM3uaAsConnList()
+	if err != nil {
+		return err
+	}
+
+	if len(m3uaAsConnList) == 0 {
+		return nil
+	}
+
+	u.m3uaAsConnList = make(map[int]dto.M3UaAsConn, len(m3uaAsConnList))
+	for _, m3uaAsConn := range m3uaAsConnList {
+		var conn = dto.M3UaAsConn{
+			ID:                    int(m3uaAsConn.ID),
+			Name:                  m3uaAsConn.Name,
+			LocalPointCode:        m3uaAsConn.LocalPointCode,
+			RemotePointCode:       m3uaAsConn.RemotePointCode,
+			Rc:                    m3uaAsConn.Rc,
+			NwApr:                 m3uaAsConn.NwApr,
+			Tmt:                   m3uaAsConn.Tmt,
+			AsType:                m3uaAsConn.AsType,
+			TrafficMode:           m3uaAsConn.TrafficMode,
+			SsnmEnabled:           m3uaAsConn.SsnmEnabled,
+			IndirectPathDiscovery: m3uaAsConn.IndirectPathDiscovery,
+			IsEnable:              m3uaAsConn.IsEnable,
+			Description:           m3uaAsConn.Description,
+		}
+		u.m3uaAsConnList[conn.ID] = conn
+	}
+
+	return nil
+}
+
+func (u *referenceUsecase) GetM3UaAspLinkList() error {
+	m3uaAspLinkList, err := u.repo.GetM3uaAspLinkList()
+	if err != nil {
+		return err
+	}
+
+	if len(m3uaAspLinkList) == 0 {
+		return nil
+	}
+
+	u.m3uaAspLinkList = make(map[int]dto.M3UaAspLink, len(m3uaAspLinkList))
+	for _, m3uaAspLink := range m3uaAspLinkList {
+		var link = dto.M3UaAspLink{
+			ID:           int(m3uaAspLink.ID),
+			Name:         m3uaAspLink.Name,
+			SctpConnID:   int(m3uaAspLink.SctpConnID),
+			M3UaAsConnID: int(m3uaAspLink.M3UaAsConnID),
+			AspID:        m3uaAspLink.AspID,
+			Sls:          m3uaAspLink.Sls,
+			AspMode:      m3uaAspLink.AspMode,
+			IsEnable:     m3uaAspLink.IsEnable,
+			Description:  m3uaAspLink.Description,
+		}
+		u.m3uaAspLinkList[link.ID] = link
 	}
 
 	return nil
