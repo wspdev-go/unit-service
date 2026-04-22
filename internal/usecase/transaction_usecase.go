@@ -7,6 +7,7 @@ import (
 
 type TransactionUsecase interface {
 	Run() error
+	Handler(transaction *dto.SS7CDR) error
 }
 
 type transactionUsecase struct {
@@ -22,5 +23,14 @@ func NewTransactionUsecase(repo repository.TransactionRepo, links map[int]dto.M3
 }
 
 func (u *transactionUsecase) Run() error {
+	//Control ClickHouse Connect and additionally check in CDR
+	return nil
+}
+
+func (u *transactionUsecase) Handler(transaction *dto.SS7CDR) error {
+	procMess := dto.ConvertSS7CDRToSs7CdrProc(transaction)
+	if err := u.repo.PutTransaction(procMess); err != nil {
+		return err
+	}
 	return nil
 }

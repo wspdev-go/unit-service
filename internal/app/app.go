@@ -46,4 +46,10 @@ func (a *App) RunApp() {
 		logger.Error("Error running reference use case: %v", err)
 	}
 
+	transactionUc := uc.GetTransactionUsecase()
+
+	if err := transactionUc.Run(); err != nil {
+		logger.Error("Error running transaction use case: %v", err)
+	}
+
 }

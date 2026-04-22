@@ -7,15 +7,18 @@ type QueueUsecase interface {
 }
 
 type queueUsecase struct {
-	repo repository.QueueRepo
+	repo          repository.QueueRepo
+	transactionUc TransactionUsecase
 }
 
-func NewQueueUsecase(repo repository.QueueRepo) QueueUsecase {
+func NewQueueUsecase(repo repository.QueueRepo, trUc TransactionUsecase) QueueUsecase {
 	return &queueUsecase{
-		repo: repo,
+		repo:          repo,
+		transactionUc: trUc,
 	}
 }
 
 func (u *queueUsecase) Run() error {
+	// Run worker that will read from queue and process transactions
 	return nil
 }

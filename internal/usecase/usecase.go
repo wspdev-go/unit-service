@@ -4,6 +4,7 @@ import "unit-service/internal/repository"
 
 type Usecase interface {
 	GetReferenceUsecase() ReferenceUsecase
+	GetTransactionUsecase() TransactionUsecase
 }
 
 type usecase struct {
@@ -43,7 +44,7 @@ func (u *usecase) GetQueueUsecase() QueueUsecase {
 		return u.queue
 	}
 
-	u.queue = NewQueueUsecase(u.repo.GetQueue())
+	u.queue = NewQueueUsecase(u.repo.GetQueue(), u.transaction)
 
 	return u.queue
 }
