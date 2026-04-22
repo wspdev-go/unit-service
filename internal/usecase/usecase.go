@@ -33,7 +33,7 @@ func (u *usecase) GetTransactionUsecase() TransactionUsecase {
 		return u.transaction
 	}
 
-	u.transaction = NewTransactionUsecase(u.repo.GetTransaction())
+	u.transaction = NewTransactionUsecase(u.repo.GetTransaction(), u.reference.GetReferenceData())
 
 	return u.transaction
 }

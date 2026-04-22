@@ -2,6 +2,11 @@ package repository
 
 import "unit-service/internal/store"
 
+const (
+	consumerQueueList = "consumer_queue_list"
+	producerQueueList = "producer_queue_list"
+)
+
 type QueueRepo interface {
 	Put() error
 	Get() error

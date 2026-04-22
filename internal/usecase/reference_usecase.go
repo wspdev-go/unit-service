@@ -8,11 +8,12 @@ import (
 
 type ReferenceUsecase interface {
 	Run() error
-	GetSctpConnList() error
+	GetReferenceData() map[int]dto.M3UaLink
 }
 
 type referenceUsecase struct {
 	repo            repository.ReferenceRepo
+	M3UaLinkList    map[int]dto.M3UaLink
 	sctpConnList    map[int]dto.SctpConn
 	m3uaAsConnList  map[int]dto.M3UaAsConn
 	m3uaAspLinkList map[int]dto.M3UaAspLink
@@ -41,6 +42,18 @@ func (u *referenceUsecase) Run() error {
 		return err
 	} else if len(u.m3uaAspLinkList) == 0 {
 		return errors.New("m3ua_asp link list is empty")
+	}
+
+	u.M3UaLinkList = make(map[int]dto.M3UaLink, len(u.m3uaAspLinkList))
+
+	for _, m3uaAspLink := range u.m3uaAspLinkList {
+		var link = dto.M3UaLink{
+			SctpConnList:    u.sctpConnList[m3uaAspLink.SctpConnID],
+			M3uaAsConnList:  u.m3uaAsConnList[m3uaAspLink.M3UaAsConnID],
+			M3uaAspLinkList: m3uaAspLink,
+		}
+		u.M3UaLinkList[m3uaAspLink.ID] = link
+
 	}
 
 	return nil
@@ -144,4 +157,8 @@ func (u *referenceUsecase) GetM3UaAspLinkList() error {
 	}
 
 	return nil
+}
+
+func (u *referenceUsecase) GetReferenceData() map[int]dto.M3UaLink {
+	return u.M3UaLinkList
 }
