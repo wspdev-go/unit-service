@@ -52,4 +52,9 @@ func (a *App) RunApp() {
 		logger.Error("Error running transaction use case: %v", err)
 	}
 
+	queueUc := uc.GetQueueUsecase()
+
+	if err := queueUc.Run(); err != nil {
+		logger.Error("Error running queue use case: %v", err)
+	}
 }

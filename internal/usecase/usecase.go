@@ -5,6 +5,7 @@ import "unit-service/internal/repository"
 type Usecase interface {
 	GetReferenceUsecase() ReferenceUsecase
 	GetTransactionUsecase() TransactionUsecase
+	GetQueueUsecase() QueueUsecase
 }
 
 type usecase struct {
