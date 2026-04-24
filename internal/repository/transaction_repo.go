@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
+
+	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
 type TransactionRepo interface {
@@ -16,24 +18,24 @@ type TransactionRepo interface {
 }
 
 type transactionRepo struct {
-	store store.TransactionStore
+	conn clickhouse.Conn
 }
 
 func NewTransactionRepo(store store.TransactionStore) TransactionRepo {
+	conn := store.Conn()
 	return &transactionRepo{
-		store: store,
+		conn: conn,
 	}
 }
 
 func (repo *transactionRepo) PutTransaction(transaction *dao.Ss7CdrProc) error {
-	conn := repo.store.Conn()
-	if conn == nil {
+	if repo.conn == nil {
 		return errors.New("conn is nil")
 	}
 
 	query := getRepoInsQuery(dao.Ss7CdrProc{})
 
-	if err := conn.Exec(context.Background(), query, getCdrFields(transaction)...); err != nil {
+	if err := repo.conn.Exec(context.Background(), query, getCdrFields(transaction)...); err != nil {
 		return err
 	}
 

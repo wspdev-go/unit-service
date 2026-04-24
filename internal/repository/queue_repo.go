@@ -23,12 +23,19 @@ type QueueRepo interface {
 }
 
 type queueRepo struct {
-	store store.QueueStore
+	client *redis.Client
 }
 
 func NewQueueRepo(store store.QueueStore) QueueRepo {
+	redisClient := store.Client()
+
+	if redisClient == nil {
+		logger.Error("Failed to initialize Redis client")
+		return nil
+	}
+
 	return &queueRepo{
-		store: store,
+		client: store.Client(),
 	}
 }
 
@@ -37,13 +44,12 @@ func (repo *queueRepo) Put() error {
 }
 
 func (repo *queueRepo) Get() ([]dto.SS7CDR, error) {
-	client := repo.store.Client()
-	if client == nil {
+	if repo.client == nil {
 		return nil, errors.New("client is nil")
 	}
 
 	var cdrs []dto.SS7CDR
-	cdrList, err := client.LRange(context.Background(), consumerQueueList, 0, 100).Result()
+	cdrList, err := repo.client.LRange(context.Background(), consumerQueueList, 0, 100).Result()
 	if err != nil && err != redis.Nil {
 		return nil, err
 	}
@@ -55,7 +61,7 @@ func (repo *queueRepo) Get() ([]dto.SS7CDR, error) {
 			return nil, err
 		}
 		cdrs = append(cdrs, cdr)
-		if _, err = client.RPop(context.Background(), consumerQueueList).Result(); err != nil {
+		if _, err = repo.client.RPop(context.Background(), consumerQueueList).Result(); err != nil {
 			return nil, err
 		}
 	}
