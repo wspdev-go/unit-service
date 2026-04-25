@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
 	"unit-service/logger"
@@ -14,15 +15,15 @@ type ReferenceRepo interface {
 	GetM3uaAspLinkList() ([]dao.M3UaAspLink, error)
 }
 
-func NewReferenceRepo(store store.ReferenceStore) ReferenceRepo {
+func NewReferenceRepo(store store.ReferenceStore) (ReferenceRepo, error) {
 	db := store.DB()
 	if db == nil {
 		logger.Error("Failed to get DB connection for ReferenceRepo")
-		return nil
+		return nil, errors.New("Failed to get DB connection for ReferenceRepo")
 	}
 	return &referenceRepo{
 		db: db,
-	}
+	}, nil
 }
 
 type referenceRepo struct {

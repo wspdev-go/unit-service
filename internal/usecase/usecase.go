@@ -3,9 +3,9 @@ package usecase
 import "unit-service/internal/repository"
 
 type Usecase interface {
-	GetReferenceUsecase() ReferenceUsecase
-	GetTransactionUsecase() TransactionUsecase
-	GetQueueUsecase() QueueUsecase
+	GetReferenceUsecase() (ReferenceUsecase, error)
+	GetTransactionUsecase() (TransactionUsecase, error)
+	GetQueueUsecase() (QueueUsecase, error)
 }
 
 type usecase struct {
@@ -19,33 +19,56 @@ func NewUsecase(repo repository.Repository) Usecase {
 	return &usecase{repo: repo}
 }
 
-func (u *usecase) GetReferenceUsecase() ReferenceUsecase {
+func (u *usecase) GetReferenceUsecase() (ReferenceUsecase, error) {
 	if u.reference != nil {
-		return u.reference
+		return u.reference, nil
 	}
 
-	u.reference = NewReferenceUsecase(u.repo.GetReference())
+	refRepo, err := u.repo.GetReference()
+	if err != nil {
+		return nil, err
+	}
 
-	return u.reference
+	u.reference = NewReferenceUsecase(refRepo)
+
+	return u.reference, nil
 
 }
 
-func (u *usecase) GetTransactionUsecase() TransactionUsecase {
+func (u *usecase) GetTransactionUsecase() (TransactionUsecase, error) {
 	if u.transaction != nil {
-		return u.transaction
+		return u.transaction, nil
 	}
 
-	u.transaction = NewTransactionUsecase(u.repo.GetTransaction(), u.reference.GetReferenceData())
+	refUc, err := u.GetReferenceUsecase()
+	if err != nil {
+		return nil, err
+	}
 
-	return u.transaction
+	if err = refUc.Run(); err != nil {
+		return nil, err
+	}
+
+	u.transaction = NewTransactionUsecase(u.repo.GetTransaction(), u.reference)
+
+	return u.transaction, nil
 }
 
-func (u *usecase) GetQueueUsecase() QueueUsecase {
+func (u *usecase) GetQueueUsecase() (QueueUsecase, error) {
 	if u.queue != nil {
-		return u.queue
+		return u.queue, nil
+	}
+
+	transactionUc, err := u.GetTransactionUsecase()
+	if err != nil {
+		return nil, err
+	}
+
+	if err = transactionUc.Run(); err != nil {
+		return nil, err
 	}
 
 	u.queue = NewQueueUsecase(u.repo.GetQueue(), u.transaction)
 
-	return u.queue
+	return u.queue, nil
 }

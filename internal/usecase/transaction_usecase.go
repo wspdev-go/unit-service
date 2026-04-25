@@ -11,14 +11,14 @@ type TransactionUsecase interface {
 }
 
 type transactionUsecase struct {
-	repo         repository.TransactionRepo
-	M3uaLinkList map[int]dto.M3UaLink
+	repo        repository.TransactionRepo
+	referenceUc ReferenceUsecase
 }
 
-func NewTransactionUsecase(repo repository.TransactionRepo, links map[int]dto.M3UaLink) TransactionUsecase {
+func NewTransactionUsecase(repo repository.TransactionRepo, refUc ReferenceUsecase) TransactionUsecase {
 	return &transactionUsecase{
-		repo:         repo,
-		M3uaLinkList: links,
+		repo:        repo,
+		referenceUc: refUc,
 	}
 }
 

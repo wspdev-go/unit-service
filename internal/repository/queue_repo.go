@@ -26,17 +26,16 @@ type queueRepo struct {
 	client *redis.Client
 }
 
-func NewQueueRepo(store store.QueueStore) QueueRepo {
+func NewQueueRepo(store store.QueueStore) (QueueRepo, error) {
 	redisClient := store.Client()
 
 	if redisClient == nil {
-		logger.Error("Failed to initialize Redis client")
-		return nil
+		return nil, errors.New("Failed to initialize Redis client")
 	}
 
 	return &queueRepo{
 		client: store.Client(),
-	}
+	}, nil
 }
 
 func (repo *queueRepo) Put() error {

@@ -21,11 +21,16 @@ type transactionRepo struct {
 	conn clickhouse.Conn
 }
 
-func NewTransactionRepo(store store.TransactionStore) TransactionRepo {
+func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
 	conn := store.Conn()
+
+	if conn == nil {
+		return nil, errors.New("Failed to initialize Redis client")
+	}
+
 	return &transactionRepo{
 		conn: conn,
-	}
+	}, nil
 }
 
 func (repo *transactionRepo) PutTransaction(transaction *dao.Ss7CdrProc) error {

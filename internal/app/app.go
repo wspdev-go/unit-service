@@ -40,21 +40,14 @@ func (a *App) RunApp() {
 
 	uc := usecase.NewUsecase(a.Repo)
 
-	refUc := uc.GetReferenceUsecase()
-
-	if err := refUc.Run(); err != nil {
-		logger.Error("Error running reference use case: %v", err)
+	queueUc, err := uc.GetQueueUsecase()
+	if err != nil {
+		logger.Error("Error initializing queue use case: %v", err)
+		return
 	}
 
-	transactionUc := uc.GetTransactionUsecase()
-
-	if err := transactionUc.Run(); err != nil {
-		logger.Error("Error running transaction use case: %v", err)
-	}
-
-	queueUc := uc.GetQueueUsecase()
-
-	if err := queueUc.Run(); err != nil {
+	if err = queueUc.Run(); err != nil {
 		logger.Error("Error running queue use case: %v", err)
+		return
 	}
 }
