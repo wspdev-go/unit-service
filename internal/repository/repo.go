@@ -4,8 +4,8 @@ import "unit-service/internal/store"
 
 type Repository interface {
 	GetReference() (ReferenceRepo, error)
-	GetQueue() QueueRepo
-	GetTransaction() TransactionRepo
+	GetQueue() (QueueRepo, error)
+	GetTransaction() (TransactionRepo, error)
 }
 
 type repo struct {
@@ -38,9 +38,9 @@ func (r *repo) GetReference() (ReferenceRepo, error) {
 	return r.Reference, nil
 }
 
-func (r *repo) GetQueue() QueueRepo {
+func (r *repo) GetQueue() (QueueRepo, error) {
 	if r.Queue != nil {
-		return r.Queue
+		return r.Queue, nil
 	}
 
 	var err error
@@ -50,15 +50,15 @@ func (r *repo) GetQueue() QueueRepo {
 	r.Queue, err = NewQueueRepo(qStore)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return r.Queue
+	return r.Queue, nil
 }
 
-func (r *repo) GetTransaction() TransactionRepo {
+func (r *repo) GetTransaction() (TransactionRepo, error) {
 	if r.Transaction != nil {
-		return r.Transaction
+		return r.Transaction, nil
 	}
 
 	var err error
@@ -67,8 +67,8 @@ func (r *repo) GetTransaction() TransactionRepo {
 
 	r.Transaction, err = NewTransactionRepo(txStore)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return r.Transaction
+	return r.Transaction, nil
 }
