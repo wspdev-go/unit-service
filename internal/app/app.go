@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -11,6 +12,8 @@ import (
 	"unit-service/internal/store"
 	"unit-service/internal/usecase"
 	"unit-service/logger"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type App struct {
@@ -63,21 +66,29 @@ func (a *App) RunApp() {
 		return
 	}
 
-	// Error Group
-	if err = transactionUc.Run(ctx); err != nil {
-		logger.Error("error initializing transaction: %v", err)
-		return
-	}
-
 	queueUc, err := uc.GetQueueUsecase()
 	if err != nil {
 		logger.Error("Error initializing queue use case: %v", err)
 		return
 	}
 
-	// Error Group
-	if err = queueUc.Run(ctx); err != nil {
-		logger.Error("Error running queue use case: %v", err)
+	g, groupCtx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return transactionUc.Run(groupCtx)
+	})
+
+	g.Go(func() error {
+		return queueUc.Run(groupCtx)
+	})
+
+	if err = g.Wait(); err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			logger.Info("application stopped")
+			return
+		}
+
+		logger.Error("error running application workers: %v", err)
 		return
 	}
 }
