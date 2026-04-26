@@ -25,7 +25,7 @@ func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
 	conn := store.Conn()
 
 	if conn == nil {
-		return nil, errors.New("Failed to initialize Redis client")
+		return nil, errors.New("clickhouse connection is nil")
 	}
 
 	return &transactionRepo{
