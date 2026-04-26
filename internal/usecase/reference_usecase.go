@@ -6,9 +6,13 @@ import (
 	"unit-service/internal/repository"
 )
 
+type ReferenceReader interface {
+	GetM3UaLink(id int) (dto.M3UaLink, bool)
+}
+
 type ReferenceUsecase interface {
 	Run() error
-	GetReferenceData() map[int]dto.M3UaLink
+	GetM3UaLink(id int) (dto.M3UaLink, bool)
 }
 
 type referenceUsecase struct {
@@ -159,6 +163,11 @@ func (u *referenceUsecase) GetM3UaAspLinkList() error {
 	return nil
 }
 
-func (u *referenceUsecase) GetReferenceData() map[int]dto.M3UaLink {
-	return u.M3UaLinkList
+func (u *referenceUsecase) GetM3UaLink(id int) (dto.M3UaLink, bool) {
+	if u.M3UaLinkList == nil {
+		return dto.M3UaLink{}, false
+	}
+
+	link, ok := u.M3UaLinkList[id]
+	return link, ok
 }
