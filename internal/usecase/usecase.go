@@ -40,12 +40,17 @@ func (u *usecase) GetTransactionUsecase() (TransactionUsecase, error) {
 		return u.transaction, nil
 	}
 
+	refUc, err := u.GetReferenceUsecase()
+	if err != nil {
+		return nil, err
+	}
+
 	repoTransaction, err := u.repo.GetTransaction()
 	if err != nil {
 		return nil, err
 	}
 
-	u.transaction = NewTransactionUsecase(repoTransaction, u.reference)
+	u.transaction = NewTransactionUsecase(repoTransaction, refUc)
 
 	return u.transaction, nil
 }
