@@ -1,7 +1,11 @@
 package app
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"unit-service/internal/config"
 	"unit-service/internal/repository"
 	"unit-service/internal/store"
@@ -37,6 +41,8 @@ func NewApp(configPath string) (*App, error) {
 func (a *App) RunApp() {
 	// Start the application logic here
 	// This function can be used to run the main application loop, handle requests, etc.
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	defer cancel()
 
 	uc := usecase.NewUsecase(a.Repo)
 
@@ -46,7 +52,7 @@ func (a *App) RunApp() {
 		return
 	}
 
-	if err = queueUc.Run(); err != nil {
+	if err = queueUc.Run(ctx); err != nil {
 		logger.Error("Error running queue use case: %v", err)
 		return
 	}

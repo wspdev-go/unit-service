@@ -1,13 +1,14 @@
 package usecase
 
 import (
-	"time"
+	"context"
+	"errors"
 	"unit-service/internal/repository"
 	"unit-service/logger"
 )
 
 type QueueUsecase interface {
-	Run() error
+	Run(ctx context.Context) error
 }
 
 type queueUsecase struct {
@@ -22,23 +23,40 @@ func NewQueueUsecase(repo repository.QueueRepo, trUc TransactionUsecase) QueueUs
 	}
 }
 
-func (u *queueUsecase) Run() error {
+func (u *queueUsecase) Run(ctx context.Context) error {
 	// Run worker that will read from queue and process transactions
+	if u.repo == nil {
+		return errors.New("repository is nil")
+	}
+
+	if u.transactionUc == nil {
+		return errors.New("transactionUc is nil")
+	}
+
 	for {
-		cdrs, err := u.repo.Get()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		cdr, err := u.repo.Consume(ctx)
 		if err != nil {
 			return err
 		}
 
-		if len(cdrs) == 0 {
-			time.Sleep(3 * time.Second)
+		if cdr == nil {
+			continue
 		}
 
-		for _, cdr := range cdrs {
-			err = u.transactionUc.Handler(&cdr)
-			if err != nil {
-				logger.Error("Failed to process transaction: %v, error: %v", cdr, err)
-			}
+		if err := u.transactionUc.Handler(cdr); err != nil {
+			logger.Error("failed to process transaction: %v, error: %v", cdr, err)
+			continue
 		}
+
+		/*if err := u.repo.Publish(ctx, cdr); err != nil {
+			logger.Error("failed to publish processed cdr: %v, error: %v", cdr, err)
+			continue
+		}*/
 	}
 }

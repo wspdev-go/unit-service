@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"time"
 	"unit-service/internal/model/dto"
 	"unit-service/internal/store"
-
-	"unit-service/logger"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -18,8 +18,8 @@ const (
 )
 
 type QueueRepo interface {
-	Put() error
-	Get() ([]dto.SS7CDR, error)
+	Consume(ctx context.Context) (*dto.SS7CDR, error)
+	Publish(ctx context.Context, cdr *dto.SS7CDR) error
 }
 
 type queueRepo struct {
@@ -30,40 +30,56 @@ func NewQueueRepo(store store.QueueStore) (QueueRepo, error) {
 	redisClient := store.Client()
 
 	if redisClient == nil {
-		return nil, errors.New("Failed to initialize Redis client")
+		return nil, errors.New("failed to initialize Redis client")
 	}
 
 	return &queueRepo{
-		client: store.Client(),
+		client: redisClient,
 	}, nil
 }
 
-func (repo *queueRepo) Put() error {
-	return nil
-}
-
-func (repo *queueRepo) Get() ([]dto.SS7CDR, error) {
+func (repo *queueRepo) Consume(ctx context.Context) (*dto.SS7CDR, error) {
 	if repo.client == nil {
-		return nil, errors.New("client is nil")
+		return nil, errors.New("redis client is nil")
 	}
 
-	var cdrs []dto.SS7CDR
-	cdrList, err := repo.client.LRange(context.Background(), consumerQueueList, 0, 100).Result()
-	if err != nil && err != redis.Nil {
+	result, err := repo.client.BRPop(ctx, 3*time.Second, consumerQueueList).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
-	for _, val := range cdrList {
-		var cdr dto.SS7CDR
-		if err = json.Unmarshal([]byte(val), &cdr); err != nil {
-			logger.Error("Failed to unmarshal CDR: %s", val)
-			return nil, err
-		}
-		cdrs = append(cdrs, cdr)
-		if _, err = repo.client.RPop(context.Background(), consumerQueueList).Result(); err != nil {
-			return nil, err
-		}
+	if len(result) != 2 {
+		return nil, fmt.Errorf("unexpected BRPOP result: %v", result)
 	}
 
-	return cdrs, nil
+	var cdr dto.SS7CDR
+	if err := json.Unmarshal([]byte(result[1]), &cdr); err != nil {
+		return nil, err
+	}
+
+	return &cdr, nil
+}
+
+func (repo *queueRepo) Publish(ctx context.Context, cdr *dto.SS7CDR) error {
+	if repo.client == nil {
+		return errors.New("redis client is nil")
+	}
+
+	if cdr == nil {
+		return errors.New("cdr is nil")
+	}
+
+	payload, err := json.Marshal(cdr)
+	if err != nil {
+		return err
+	}
+
+	if err := repo.client.LPush(ctx, producerQueueList, payload).Err(); err != nil {
+		return err
+	}
+
+	return nil
 }
