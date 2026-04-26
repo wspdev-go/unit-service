@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"unit-service/internal/model/dto"
 	"unit-service/internal/repository"
@@ -11,8 +12,8 @@ type ReferenceReader interface {
 }
 
 type ReferenceUsecase interface {
-	Run() error
-	GetM3UaLink(id int) (dto.M3UaLink, bool)
+	Run(ctx context.Context) error
+	ReferenceReader
 }
 
 type referenceUsecase struct {
@@ -29,7 +30,11 @@ func NewReferenceUsecase(repo repository.ReferenceRepo) ReferenceUsecase {
 	}
 }
 
-func (u *referenceUsecase) Run() error {
+func (u *referenceUsecase) Run(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	if err := u.GetSctpConnList(); err != nil {
 		return err
 	} else if len(u.sctpConnList) == 0 {

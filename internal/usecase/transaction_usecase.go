@@ -1,13 +1,18 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
+	"time"
 	"unit-service/internal/model/dto"
 	"unit-service/internal/repository"
+	"unit-service/logger"
 )
 
+const batchTimeout = 300
+
 type TransactionUsecase interface {
-	Run() error
+	Run(ctx context.Context) error
 	Handler(transaction *dto.SS7CDR) error
 }
 
@@ -23,9 +28,25 @@ func NewTransactionUsecase(repo repository.TransactionRepo, refUc ReferenceReade
 	}
 }
 
-func (u *transactionUsecase) Run() error {
-	// Control ClickHouse connection and prepare transaction processing state here.
-	return nil
+func (u *transactionUsecase) Run(ctx context.Context) error {
+	// Control ClickHouse batch insert by time or count, for example, every 5 seconds or every 100 transactions
+
+	ticker := time.NewTicker(batchTimeout * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			err := u.repo.PushBatch(batchCtx)
+			if err != nil {
+				logger.Error("error pushing transactions: %v", err)
+			}
+			cancel()
+		}
+	}
 }
 
 func (u *transactionUsecase) Handler(transaction *dto.SS7CDR) error {

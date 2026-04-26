@@ -41,10 +41,33 @@ func NewApp(configPath string) (*App, error) {
 func (a *App) RunApp() {
 	// Start the application logic here
 	// This function can be used to run the main application loop, handle requests, etc.
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	uc := usecase.NewUsecase(a.Repo)
+
+	refUc, err := uc.GetReferenceUsecase()
+	if err != nil {
+		logger.Error("error initializing reference use case: %v", err)
+		return
+	}
+
+	if err = refUc.Run(ctx); err != nil {
+		logger.Error("error loading reference data: %v", err)
+		return
+	}
+
+	transactionUc, err := uc.GetTransactionUsecase()
+	if err != nil {
+		logger.Error("error initializing transaction use case: %v", err)
+		return
+	}
+
+	// Error Group
+	if err = transactionUc.Run(ctx); err != nil {
+		logger.Error("error initializing transaction: %v", err)
+		return
+	}
 
 	queueUc, err := uc.GetQueueUsecase()
 	if err != nil {
@@ -52,6 +75,7 @@ func (a *App) RunApp() {
 		return
 	}
 
+	// Error Group
 	if err = queueUc.Run(ctx); err != nil {
 		logger.Error("Error running queue use case: %v", err)
 		return

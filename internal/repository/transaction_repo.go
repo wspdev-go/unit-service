@@ -13,7 +13,7 @@ import (
 )
 
 type TransactionRepo interface {
-	PushBatch() error
+	PushBatch(ctx context.Context) error
 	PutTransaction(transaction *dao.Ss7CdrProc) error
 }
 
@@ -166,6 +166,6 @@ func getRepoInsQuery(obj dao.Ss7CdrProc) string {
 	return sql
 }
 
-func (repo *transactionRepo) PushBatch() error {
+func (repo *transactionRepo) PushBatch(ctx context.Context) error {
 	return nil
 }

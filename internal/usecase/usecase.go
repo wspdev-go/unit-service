@@ -40,15 +40,6 @@ func (u *usecase) GetTransactionUsecase() (TransactionUsecase, error) {
 		return u.transaction, nil
 	}
 
-	refUc, err := u.GetReferenceUsecase()
-	if err != nil {
-		return nil, err
-	}
-
-	if err = refUc.Run(); err != nil {
-		return nil, err
-	}
-
 	repoTransaction, err := u.repo.GetTransaction()
 	if err != nil {
 		return nil, err
@@ -62,15 +53,6 @@ func (u *usecase) GetTransactionUsecase() (TransactionUsecase, error) {
 func (u *usecase) GetQueueUsecase() (QueueUsecase, error) {
 	if u.queue != nil {
 		return u.queue, nil
-	}
-
-	transactionUc, err := u.GetTransactionUsecase()
-	if err != nil {
-		return nil, err
-	}
-
-	if err = transactionUc.Run(); err != nil {
-		return nil, err
 	}
 
 	repoQueue, err := u.repo.GetQueue()
