@@ -6,19 +6,26 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
+	"unit-service/logger"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
+const batchSize = 1000
+
 type TransactionRepo interface {
-	PushBatch(ctx context.Context) error
+	PushBatchTransaction(ctx context.Context) error
+	PutBatch(transaction *dao.Ss7CdrProc) error
 	PutTransaction(transaction *dao.Ss7CdrProc) error
 }
 
 type transactionRepo struct {
-	conn clickhouse.Conn
+	conn      clickhouse.Conn
+	batchBuff []dao.Ss7CdrProc
+	mu        sync.Mutex
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -29,7 +36,8 @@ func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
 	}
 
 	return &transactionRepo{
-		conn: conn,
+		conn:      conn,
+		batchBuff: make([]dao.Ss7CdrProc, 0, batchSize), // Initialize batch buffer with a reasonable capacity
 	}, nil
 }
 
@@ -166,6 +174,48 @@ func getRepoInsQuery(obj dao.Ss7CdrProc) string {
 	return sql
 }
 
-func (repo *transactionRepo) PushBatch(ctx context.Context) error {
+func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
+	if transaction == nil {
+		return errors.New("transaction is nil")
+	}
+
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+
+	repo.batchBuff = append(repo.batchBuff, *transaction)
+
+	return nil
+}
+
+func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
+	if len(repo.batchBuff) == 0 {
+		return nil
+	}
+
+	buff := repo.batchBuff
+
+	repo.mu.Lock()
+	repo.batchBuff = make([]dao.Ss7CdrProc, 0, batchSize)
+	repo.mu.Unlock()
+
+	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
+	if err != nil {
+		return err
+	}
+
+	for _, cdr := range buff {
+		if err = batch.Append(getCdrFields(&cdr)...); err != nil {
+			logger.Error("Error batching CDR: %v", err)
+		}
+	}
+
+	if err = batch.Send(); err != nil {
+		_ = batch.Abort()
+		logger.Error("%s", err.Error())
+		return err
+	}
+
+	batch = nil
+
 	return nil
 }

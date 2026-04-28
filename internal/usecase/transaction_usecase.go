@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"time"
 	"unit-service/internal/model/dto"
 	"unit-service/internal/repository"
@@ -40,7 +39,7 @@ func (u *transactionUsecase) Run(ctx context.Context) error {
 			return ctx.Err()
 		case <-ticker.C:
 			batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			err := u.repo.PushBatch(batchCtx)
+			err := u.repo.PushBatchTransaction(batchCtx)
 			if err != nil {
 				logger.Error("error pushing transactions: %v", err)
 			}
@@ -50,16 +49,17 @@ func (u *transactionUsecase) Run(ctx context.Context) error {
 }
 
 func (u *transactionUsecase) Handler(transaction *dto.SS7CDR) error {
-	link, ok := u.reference.GetM3UaLink(transaction.SigtranLinkID)
+	// TODO: Temporary is not link control
+	/*link, ok := u.reference.GetM3UaLink(transaction.SigtranLinkID)
 	if !ok {
 		return fmt.Errorf("m3ua link not found: %d", transaction.SigtranLinkID)
 	}
 
-	_ = link
+	_ = link*/
 
 	procMess := dto.ConvertSS7CDRToSs7CdrProc(transaction)
 
-	if err := u.repo.PutTransaction(procMess); err != nil {
+	if err := u.repo.PutBatch(procMess); err != nil {
 		return err
 	}
 	return nil
