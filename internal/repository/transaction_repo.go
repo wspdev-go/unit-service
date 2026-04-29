@@ -184,7 +184,7 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 
 	repo.mu.Lock()
 	repo.batchBuff = append(repo.batchBuff, *transaction)
-	if len(repo.batchBuff) > batchSize {
+	if len(repo.batchBuff) >= batchSize {
 		needFlush = true
 	}
 	repo.mu.Unlock()
