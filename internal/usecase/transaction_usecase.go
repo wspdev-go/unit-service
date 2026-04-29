@@ -49,13 +49,13 @@ func (u *transactionUsecase) Run(ctx context.Context) error {
 }
 
 func (u *transactionUsecase) Handler(transaction *dto.SS7CDR) error {
-	// TODO: Temporary is not link control
-	/*link, ok := u.reference.GetM3UaLink(transaction.SigtranLinkID)
+
+	link, ok := u.reference.GetM3UaLink(transaction.SigtranLinkID)
 	if !ok {
-		return fmt.Errorf("m3ua link not found: %d", transaction.SigtranLinkID)
+		//return fmt.Errorf("m3ua link not found: %d", transaction.SigtranLinkID)
 	}
 
-	_ = link*/
+	_ = link
 
 	procMess := dto.ConvertSS7CDRToSs7CdrProc(transaction)
 

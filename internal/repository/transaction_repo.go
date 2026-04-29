@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
 	"unit-service/logger"
@@ -179,23 +180,37 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 		return errors.New("transaction is nil")
 	}
 
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
+	needFlush := false
 
+	repo.mu.Lock()
 	repo.batchBuff = append(repo.batchBuff, *transaction)
+	if len(repo.batchBuff) > batchSize {
+		needFlush = true
+	}
+	repo.mu.Unlock()
+
+	if needFlush {
+		batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		err := repo.PushBatchTransaction(batchCtx)
+		if err != nil {
+			logger.Error("error pushing transactions: %v", err)
+		}
+	}
 
 	return nil
 }
 
 func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
+	repo.mu.Lock()
 	if len(repo.batchBuff) == 0 {
+		repo.mu.Unlock()
 		return nil
 	}
 
-	buff := repo.batchBuff
-
-	repo.mu.Lock()
-	repo.batchBuff = make([]dao.Ss7CdrProc, 0, batchSize)
+	buff := make([]dao.Ss7CdrProc, len(repo.batchBuff))
+	copy(buff, repo.batchBuff)
+	repo.batchBuff = make([]dao.Ss7CdrProc, 0, 3*batchSize)
 	repo.mu.Unlock()
 
 	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
