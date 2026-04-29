@@ -229,6 +229,10 @@ func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 		repo.mu.Unlock()
 	}()
 
+	return repo.runPush(ctx, buff)
+}
+
+func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc) error {
 	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
 	if err != nil {
 		return err
