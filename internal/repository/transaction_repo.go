@@ -202,6 +202,7 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 }
 
 func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
+	//TODO: Need to change func, repo.batchBuff = make([]dao.Ss7CdrProc, 0, 3*batchSize) must be only after batch.Send() successfully
 	repo.mu.Lock()
 	if len(repo.batchBuff) == 0 {
 		repo.mu.Unlock()
@@ -210,6 +211,7 @@ func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 
 	buff := make([]dao.Ss7CdrProc, len(repo.batchBuff))
 	copy(buff, repo.batchBuff)
+	repo.batchBuff = make([]dao.Ss7CdrProc, 0, 3*batchSize)
 	repo.mu.Unlock()
 
 	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
@@ -228,14 +230,6 @@ func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 		logger.Error("%s", err.Error())
 		return err
 	}
-
-	repo.mu.Lock()
-	if len(repo.batchBuff) >= len(buff) {
-		repo.batchBuff = repo.batchBuff[len(buff):]
-	} else {
-		repo.batchBuff = make([]dao.Ss7CdrProc, 0, batchSize)
-	}
-	repo.mu.Unlock()
 
 	batch = nil
 
