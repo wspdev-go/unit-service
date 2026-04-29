@@ -27,6 +27,7 @@ type transactionRepo struct {
 	conn      clickhouse.Conn
 	batchBuff []dao.Ss7CdrProc
 	mu        sync.Mutex
+	pushing   bool
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -202,17 +203,31 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 }
 
 func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
-	//TODO: Need to change func, repo.batchBuff = make([]dao.Ss7CdrProc, 0, 3*batchSize) must be only after batch.Send() successfully
 	repo.mu.Lock()
+
+	if repo.pushing {
+		repo.mu.Unlock()
+		return nil
+	}
+
 	if len(repo.batchBuff) == 0 {
 		repo.mu.Unlock()
 		return nil
 	}
 
+	repo.pushing = true
+
 	buff := make([]dao.Ss7CdrProc, len(repo.batchBuff))
 	copy(buff, repo.batchBuff)
 	repo.batchBuff = make([]dao.Ss7CdrProc, 0, 3*batchSize)
+
 	repo.mu.Unlock()
+
+	defer func() {
+		repo.mu.Lock()
+		repo.pushing = false
+		repo.mu.Unlock()
+	}()
 
 	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
 	if err != nil {
@@ -221,17 +236,26 @@ func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 
 	for _, cdr := range buff {
 		if err = batch.Append(getCdrFields(&cdr)...); err != nil {
-			logger.Error("Error batching CDR: %v", err)
+			_ = batch.Abort()
+			repo.restoreFailedBatch(buff)
+			return err
 		}
 	}
 
 	if err = batch.Send(); err != nil {
 		_ = batch.Abort()
-		logger.Error("%s", err.Error())
+		repo.restoreFailedBatch(buff)
 		return err
 	}
 
 	batch = nil
 
 	return nil
+}
+
+func (repo *transactionRepo) restoreFailedBatch(buff []dao.Ss7CdrProc) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+
+	repo.batchBuff = append(buff, repo.batchBuff...)
 }
