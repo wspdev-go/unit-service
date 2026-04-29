@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"unit-service/internal/model/dto"
 	"unit-service/internal/repository"
 	"unit-service/logger"
 )
@@ -33,6 +34,8 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 		return errors.New("transactionUc is nil")
 	}
 
+	semCh := make(chan struct{}, 10)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -49,10 +52,14 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 			continue
 		}
 
-		if err := u.transactionUc.Handler(cdr); err != nil {
-			logger.Error("failed to process transaction: %v, error: %v", cdr, err)
-			continue
-		}
+		semCh <- struct{}{}
+
+		go func(cdr *dto.SS7CDR) {
+			defer func() { <-semCh }()
+			if err := u.transactionUc.Handler(ctx, cdr); err != nil {
+				logger.Error("failed to process transaction: %v, error: %v", cdr, err)
+			}
+		}(cdr)
 
 		/*if err := u.repo.Publish(ctx, cdr); err != nil {
 			logger.Error("failed to publish processed cdr: %v, error: %v", cdr, err)

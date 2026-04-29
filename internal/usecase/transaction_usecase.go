@@ -12,7 +12,7 @@ const batchTimeout = 300
 
 type TransactionUsecase interface {
 	Run(ctx context.Context) error
-	Handler(transaction *dto.SS7CDR) error
+	Handler(ctx context.Context, transaction *dto.SS7CDR) error
 }
 
 type transactionUsecase struct {
@@ -48,7 +48,13 @@ func (u *transactionUsecase) Run(ctx context.Context) error {
 	}
 }
 
-func (u *transactionUsecase) Handler(transaction *dto.SS7CDR) error {
+func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.SS7CDR) error {
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 
 	link, ok := u.reference.GetM3UaLink(transaction.SigtranLinkID)
 	if !ok {
