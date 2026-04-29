@@ -56,7 +56,7 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 
 		go func(cdr *dto.SS7CDR) {
 			defer func() { <-semCh }()
-			if err := u.transactionUc.Handler(ctx, cdr); err != nil {
+			if err = u.transactionUc.Handler(ctx, cdr); err != nil {
 				logger.Error("failed to process transaction: %v, error: %v", cdr, err)
 			}
 		}(cdr)

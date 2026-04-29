@@ -180,16 +180,16 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 		return errors.New("transaction is nil")
 	}
 
-	needFlush := false
+	needPush := false
 
 	repo.mu.Lock()
 	repo.batchBuff = append(repo.batchBuff, *transaction)
 	if len(repo.batchBuff) >= batchSize {
-		needFlush = true
+		needPush = true
 	}
 	repo.mu.Unlock()
 
-	if needFlush {
+	if needPush {
 		batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		err := repo.PushBatchTransaction(batchCtx)
