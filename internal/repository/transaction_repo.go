@@ -241,14 +241,14 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 	for _, cdr := range buff {
 		if err = batch.Append(getCdrFields(&cdr)...); err != nil {
 			_ = batch.Abort()
-			repo.restoreFailedBatch(buff)
+			go repo.restoreFailedBatch(buff)
 			return err
 		}
 	}
 
 	if err = batch.Send(); err != nil {
 		_ = batch.Abort()
-		repo.restoreFailedBatch(buff)
+		go repo.restoreFailedBatch(buff)
 		return err
 	}
 
