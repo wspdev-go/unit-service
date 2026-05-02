@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
 
@@ -26,7 +27,7 @@ type transactionRepo struct {
 	conn      clickhouse.Conn
 	batchBuff []dao.Ss7CdrProc
 	mu        sync.Mutex
-	needPush  bool
+	needPush  atomic.Bool
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -183,7 +184,7 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 	repo.mu.Lock()
 	repo.batchBuff = append(repo.batchBuff, *transaction)
 	if len(repo.batchBuff) >= batchSize {
-		repo.needPush = true
+		repo.needPush.Store(true)
 	}
 	repo.mu.Unlock()
 
@@ -191,7 +192,7 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 }
 
 func (repo *transactionRepo) GetNeedPush() bool {
-	return repo.needPush
+	return repo.needPush.Load()
 }
 
 func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
@@ -231,7 +232,7 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 		return err
 	}
 
-	repo.needPush = false
+	repo.needPush.Store(false)
 
 	batch = nil
 
