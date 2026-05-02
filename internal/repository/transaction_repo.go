@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
 
@@ -20,14 +19,14 @@ type TransactionRepo interface {
 	PushBatchTransaction(ctx context.Context) error
 	PutBatch(transaction *dao.Ss7CdrProc) error
 	PutTransaction(transaction *dao.Ss7CdrProc) error
-	GetNeedPush() bool
+	FlushCh() <-chan struct{}
 }
 
 type transactionRepo struct {
 	conn      clickhouse.Conn
 	batchBuff []dao.Ss7CdrProc
 	mu        sync.Mutex
-	needPush  atomic.Bool
+	flushCh   chan struct{}
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -40,6 +39,7 @@ func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
 	return &transactionRepo{
 		conn:      conn,
 		batchBuff: make([]dao.Ss7CdrProc, 0, batchSize), // Initialize batch buffer with a reasonable capacity
+		flushCh:   make(chan struct{}, 1),
 	}, nil
 }
 
@@ -181,18 +181,27 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 		return errors.New("transaction is nil")
 	}
 
+	needSignal := false
+
 	repo.mu.Lock()
 	repo.batchBuff = append(repo.batchBuff, *transaction)
 	if len(repo.batchBuff) >= batchSize {
-		repo.needPush.Store(true)
+		needSignal = true
 	}
 	repo.mu.Unlock()
+
+	if needSignal {
+		select {
+		case repo.flushCh <- struct{}{}:
+		default:
+		}
+	}
 
 	return nil
 }
 
-func (repo *transactionRepo) GetNeedPush() bool {
-	return repo.needPush.Load()
+func (repo *transactionRepo) FlushCh() <-chan struct{} {
+	return repo.flushCh
 }
 
 func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
@@ -231,8 +240,6 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 		repo.restoreFailedBatch(buff)
 		return err
 	}
-
-	repo.needPush.Store(false)
 
 	batch = nil
 

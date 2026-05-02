@@ -38,22 +38,19 @@ func (u *transactionUsecase) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			err := u.repo.PushBatchTransaction(batchCtx)
-			if err != nil {
-				logger.Error("error pushing transactions: %v", err)
-			}
-			cancel()
-		default:
-			if u.repo.GetNeedPush() {
-				batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				err := u.repo.PushBatchTransaction(batchCtx)
-				if err != nil {
-					logger.Error("error pushing transactions: %v", err)
-				}
-				cancel()
-			}
+			u.pushTransaction()
+		case <-u.repo.FlushCh():
+			u.pushTransaction()
 		}
+	}
+}
+
+func (u *transactionUsecase) pushTransaction() {
+	batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	if err := u.repo.PushBatchTransaction(batchCtx); err != nil {
+		logger.Error("error pushing transactions: %v", err)
 	}
 }
 
