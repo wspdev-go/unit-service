@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"sync"
 	"unit-service/internal/model/dto"
 	"unit-service/internal/repository"
 	"unit-service/logger"
@@ -35,6 +36,9 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 	}
 
 	semCh := make(chan struct{}, 10)
+	var wg sync.WaitGroup
+
+	defer wg.Wait()
 
 	for {
 		select {
@@ -52,10 +56,19 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 			continue
 		}
 
-		semCh <- struct{}{}
+		select {
+		case semCh <- struct{}{}:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+
+		wg.Add(1)
 
 		go func(cdr *dto.SS7CDR) {
-			defer func() { <-semCh }()
+			defer func() {
+				<-semCh
+				wg.Done()
+			}()
 			if err := u.transactionUc.Handler(ctx, cdr); err != nil {
 				logger.Error("failed to process transaction: %v, error: %v", cdr, err)
 			}
