@@ -44,6 +44,15 @@ func (u *transactionUsecase) Run(ctx context.Context) error {
 				logger.Error("error pushing transactions: %v", err)
 			}
 			cancel()
+		default:
+			if u.repo.GetNeedPush() {
+				batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				err := u.repo.PushBatchTransaction(batchCtx)
+				if err != nil {
+					logger.Error("error pushing transactions: %v", err)
+				}
+				cancel()
+			}
 		}
 	}
 }

@@ -7,10 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"time"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
-	"unit-service/logger"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
@@ -21,13 +19,14 @@ type TransactionRepo interface {
 	PushBatchTransaction(ctx context.Context) error
 	PutBatch(transaction *dao.Ss7CdrProc) error
 	PutTransaction(transaction *dao.Ss7CdrProc) error
+	GetNeedPush() bool
 }
 
 type transactionRepo struct {
 	conn      clickhouse.Conn
 	batchBuff []dao.Ss7CdrProc
 	mu        sync.Mutex
-	pushing   bool
+	needPush  bool
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -181,53 +180,33 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 		return errors.New("transaction is nil")
 	}
 
-	needPush := false
-
 	repo.mu.Lock()
 	repo.batchBuff = append(repo.batchBuff, *transaction)
 	if len(repo.batchBuff) >= batchSize {
-		needPush = true
+		repo.needPush = true
 	}
 	repo.mu.Unlock()
-
-	if needPush {
-		batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		err := repo.PushBatchTransaction(batchCtx)
-		if err != nil {
-			logger.Error("error pushing transactions: %v", err)
-		}
-	}
 
 	return nil
 }
 
+func (repo *transactionRepo) GetNeedPush() bool {
+	return repo.needPush
+}
+
 func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 	repo.mu.Lock()
-
-	if repo.pushing {
-		repo.mu.Unlock()
-		return nil
-	}
 
 	if len(repo.batchBuff) == 0 {
 		repo.mu.Unlock()
 		return nil
 	}
 
-	repo.pushing = true
-
 	buff := make([]dao.Ss7CdrProc, len(repo.batchBuff))
 	copy(buff, repo.batchBuff)
 	repo.batchBuff = make([]dao.Ss7CdrProc, 0, 3*batchSize)
 
 	repo.mu.Unlock()
-
-	defer func() {
-		repo.mu.Lock()
-		repo.pushing = false
-		repo.mu.Unlock()
-	}()
 
 	return repo.runPush(ctx, buff)
 }
@@ -251,6 +230,8 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 		repo.restoreFailedBatch(buff)
 		return err
 	}
+
+	repo.needPush = false
 
 	batch = nil
 
