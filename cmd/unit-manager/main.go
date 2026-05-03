@@ -19,7 +19,7 @@ func main() {
 	if isProfUsage {
 		go func() {
 			// Pprof default registered on /debug/pprof/
-			http.ListenAndServe("localhost:6060", nil)
+			_ = http.ListenAndServe("localhost:6060", nil)
 		}()
 
 		f, err := os.Create("CDR-trace.out")
