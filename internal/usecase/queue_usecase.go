@@ -9,6 +9,11 @@ import (
 	"unit-service/logger"
 )
 
+const (
+	defaultWorkerCount  = 10
+	defaultJobQueueSize = 100
+)
+
 type QueueUsecase interface {
 	Run(ctx context.Context) error
 }
@@ -16,12 +21,16 @@ type QueueUsecase interface {
 type queueUsecase struct {
 	repo          repository.QueueRepo
 	transactionUc TransactionUsecase
+	workerCount   int
+	jobQueueSize  int
 }
 
 func NewQueueUsecase(repo repository.QueueRepo, trUc TransactionUsecase) QueueUsecase {
 	return &queueUsecase{
 		repo:          repo,
 		transactionUc: trUc,
+		workerCount:   defaultWorkerCount,
+		jobQueueSize:  defaultJobQueueSize,
 	}
 }
 
@@ -35,10 +44,22 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 		return errors.New("transactionUc is nil")
 	}
 
-	semCh := make(chan struct{}, 10)
+	jobsCh := make(chan *dto.SS7CDR, u.jobQueueSize)
 	var wg sync.WaitGroup
 
-	defer wg.Wait()
+	for i := 0; i < u.workerCount; i++ {
+		wg.Add(1)
+
+		go func(workerID int) {
+			defer wg.Done()
+			u.runWorker(ctx, jobsCh, workerID)
+		}(i)
+	}
+
+	defer func() {
+		close(jobsCh)
+		wg.Wait()
+	}()
 
 	for {
 		select {
@@ -57,26 +78,37 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 		}
 
 		select {
-		case semCh <- struct{}{}:
+		case jobsCh <- cdr:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-
-		wg.Add(1)
-
-		go func(cdr *dto.SS7CDR) {
-			defer func() {
-				<-semCh
-				wg.Done()
-			}()
-			if err := u.transactionUc.Handler(ctx, cdr); err != nil {
-				logger.Error("failed to process transaction: %v, error: %v", cdr, err)
-			}
-		}(cdr)
 
 		/*if err := u.repo.Publish(ctx, cdr); err != nil {
 			logger.Error("failed to publish processed cdr: %v, error: %v", cdr, err)
 			continue
 		}*/
+	}
+}
+
+func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.SS7CDR, workerID int) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case cdr, ok := <-jobsCh:
+			if !ok {
+				return
+			}
+
+			if err := u.transactionUc.Handler(ctx, cdr); err != nil {
+				logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, cdr, err)
+				continue
+			}
+
+			// later:
+			// if err := u.repo.Publish(ctx, cdr); err != nil {
+			// 	logger.Error("worker %d failed to publish processed cdr: %v, error: %v", workerID, cdr, err)
+			// }
+		}
 	}
 }
