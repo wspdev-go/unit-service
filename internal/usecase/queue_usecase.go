@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 	"unit-service/internal/model/dto"
 	"unit-service/internal/repository"
 	"unit-service/logger"
@@ -52,19 +53,22 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 
 		go func(workerID int) {
 			defer wg.Done()
-			u.runWorker(ctx, jobsCh, workerID)
+			u.runWorker(jobsCh, workerID)
 		}(i)
 	}
 
 	defer func() {
 		close(jobsCh)
-		wg.Wait()
 	}()
 
+	var err error
+
+loop:
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			err = ctx.Err()
+			break loop
 		default:
 		}
 
@@ -80,7 +84,8 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 		select {
 		case jobsCh <- cdr:
 		case <-ctx.Done():
-			return ctx.Err()
+			err = ctx.Err()
+			break loop
 		}
 
 		/*if err := u.repo.Publish(ctx, cdr); err != nil {
@@ -88,27 +93,23 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 			continue
 		}*/
 	}
+	wg.Wait()
+
+	return err
 }
 
-func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.SS7CDR, workerID int) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case cdr, ok := <-jobsCh:
-			if !ok {
-				return
-			}
-
-			if err := u.transactionUc.Handler(ctx, cdr); err != nil {
-				logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, cdr, err)
-				continue
-			}
-
-			// later:
-			// if err := u.repo.Publish(ctx, cdr); err != nil {
-			// 	logger.Error("worker %d failed to publish processed cdr: %v, error: %v", workerID, cdr, err)
-			// }
+func (u *queueUsecase) runWorker(jobsCh <-chan *dto.SS7CDR, workerID int) {
+	for cdr := range jobsCh {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		err := u.transactionUc.Handler(ctx, cdr)
+		if err != nil {
+			logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, cdr, err)
 		}
+		cancel()
+
+		// later:
+		// if err := u.repo.Publish(ctx, cdr); err != nil {
+		// 	logger.Error("worker %d failed to publish processed cdr: %v, error: %v", workerID, cdr, err)
+		// }
 	}
 }

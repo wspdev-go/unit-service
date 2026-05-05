@@ -224,6 +224,7 @@ func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc) error {
 	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
 	if err != nil {
+		repo.restoreFailedBatch(buff)
 		return err
 	}
 
