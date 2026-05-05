@@ -64,7 +64,7 @@ func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.SS7CD
 
 	link, ok := u.reference.GetM3UaLink(transaction.SigtranLinkID)
 	if !ok {
-		//return fmt.Errorf("m3ua link not found: %d", transaction.SigtranLinkID)
+		//return fmt.Errorf("Signal link not found: %d", transaction.SigtranLinkID)
 	}
 
 	_ = link
