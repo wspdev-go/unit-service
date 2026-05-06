@@ -83,22 +83,10 @@ func (u *referenceUsecase) GetSctpConnList() error {
 
 	for _, sctpConn := range sctpConnList {
 		var conn = dto.SctpConn{
-			ID:                 int(sctpConn.ID),
-			Name:               sctpConn.Name,
-			LocalInterface:     sctpConn.LocalInterface,
-			LocalIpAddress:     sctpConn.LocalIpAddress,
-			LocalIpPort:        sctpConn.LocalIpPort,
-			RemoteIpAddress:    sctpConn.RemoteIpAddress,
-			RemoteIpPort:       sctpConn.RemoteIpPort,
-			SctpRole:           sctpConn.SctpRole,
-			Heartbeats:         sctpConn.Heartbeats,
-			HeartbeatsTimer:    sctpConn.HeartbeatsTimer,
-			PathRetransmission: sctpConn.PathRetransmission,
-			MaxAssociations:    sctpConn.MaxAssociations,
-			NumberOfStreams:    sctpConn.NumberOfStreams,
-			IsEnable:           sctpConn.IsEnable,
-			Description:        sctpConn.Description,
-			WriteBufferSize:    sctpConn.WriteBufferSize,
+			ID:          int(sctpConn.ID),
+			Name:        sctpConn.Name,
+			IsEnable:    sctpConn.IsEnable,
+			Description: sctpConn.Description,
 		}
 		u.sctpConnList[conn.ID] = conn
 	}
@@ -119,19 +107,10 @@ func (u *referenceUsecase) GetM3UaAsConnList() error {
 	u.m3uaAsConnList = make(map[int]dto.M3UaAsConn, len(m3uaAsConnList))
 	for _, m3uaAsConn := range m3uaAsConnList {
 		var conn = dto.M3UaAsConn{
-			ID:                    int(m3uaAsConn.ID),
-			Name:                  m3uaAsConn.Name,
-			LocalPointCode:        m3uaAsConn.LocalPointCode,
-			RemotePointCode:       m3uaAsConn.RemotePointCode,
-			Rc:                    m3uaAsConn.Rc,
-			NwApr:                 m3uaAsConn.NwApr,
-			Tmt:                   m3uaAsConn.Tmt,
-			AsType:                m3uaAsConn.AsType,
-			TrafficMode:           m3uaAsConn.TrafficMode,
-			SsnmEnabled:           m3uaAsConn.SsnmEnabled,
-			IndirectPathDiscovery: m3uaAsConn.IndirectPathDiscovery,
-			IsEnable:              m3uaAsConn.IsEnable,
-			Description:           m3uaAsConn.Description,
+			ID:          int(m3uaAsConn.ID),
+			Name:        m3uaAsConn.Name,
+			IsEnable:    m3uaAsConn.IsEnable,
+			Description: m3uaAsConn.Description,
 		}
 		u.m3uaAsConnList[conn.ID] = conn
 	}
@@ -156,9 +135,6 @@ func (u *referenceUsecase) GetM3UaAspLinkList() error {
 			Name:         m3uaAspLink.Name,
 			SctpConnID:   int(m3uaAspLink.SctpConnID),
 			M3UaAsConnID: int(m3uaAspLink.M3UaAsConnID),
-			AspID:        m3uaAspLink.AspID,
-			Sls:          m3uaAspLink.Sls,
-			AspMode:      m3uaAspLink.AspMode,
 			IsEnable:     m3uaAspLink.IsEnable,
 			Description:  m3uaAspLink.Description,
 		}

@@ -12,7 +12,7 @@ const batchTimeout = 300
 
 type TransactionUsecase interface {
 	Run(ctx context.Context) error
-	Handler(ctx context.Context, transaction *dto.SS7CDR) error
+	Handler(ctx context.Context, transaction *dto.Transaction) error
 }
 
 type transactionUsecase struct {
@@ -54,7 +54,7 @@ func (u *transactionUsecase) pushTransaction() {
 	}
 }
 
-func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.SS7CDR) error {
+func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.Transaction) error {
 
 	select {
 	case <-ctx.Done():
@@ -62,14 +62,14 @@ func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.SS7CD
 	default:
 	}
 
-	link, ok := u.reference.GetM3UaLink(transaction.SigtranLinkID)
+	link, ok := u.reference.GetM3UaLink(transaction.TransactionLinkID)
 	if !ok {
 		//return fmt.Errorf("Signal link not found: %d", transaction.SigtranLinkID)
 	}
 
 	_ = link
 
-	procMess := dto.ConvertSS7CDRToSs7CdrProc(transaction)
+	procMess := dto.ConvertTransaction(transaction)
 
 	if err := u.repo.PutBatch(procMess); err != nil {
 		return err

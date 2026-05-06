@@ -45,7 +45,7 @@ func (u *queueUsecase) Run(ctx context.Context) error {
 		return errors.New("transactionUc is nil")
 	}
 
-	jobsCh := make(chan *dto.SS7CDR, u.jobQueueSize)
+	jobsCh := make(chan *dto.Transaction, u.jobQueueSize)
 	var wg sync.WaitGroup
 
 	for i := 0; i < u.workerCount; i++ {
@@ -98,12 +98,12 @@ loop:
 	return err
 }
 
-func (u *queueUsecase) runWorker(jobsCh <-chan *dto.SS7CDR, workerID int) {
-	for cdr := range jobsCh {
+func (u *queueUsecase) runWorker(jobsCh <-chan *dto.Transaction, workerID int) {
+	for tr := range jobsCh {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		err := u.transactionUc.Handler(ctx, cdr)
+		err := u.transactionUc.Handler(ctx, tr)
 		if err != nil {
-			logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, cdr, err)
+			logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, tr, err)
 		}
 		cancel()
 
