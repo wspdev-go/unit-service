@@ -91,7 +91,6 @@ loop:
 		select {
 		case jobsCh <- cdr:
 		case <-ctx.Done():
-			err = ctx.Err()
 			break loop
 		}
 
@@ -106,13 +105,21 @@ loop:
 }
 
 func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.SS7CDR, workerID int) {
-	for cdr := range jobsCh {
-		ctxTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
-		err := u.transactionUc.Handler(ctxTimeout, cdr)
-		if err != nil {
-			logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, cdr, err)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case cdr, ok := <-jobsCh:
+			if !ok {
+				return
+			}
+			ctxTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
+			err := u.transactionUc.Handler(ctxTimeout, cdr)
+			if err != nil {
+				logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, cdr, err)
+			}
+			cancel()
 		}
-		cancel()
 
 		// later:
 		// if err := u.repo.Publish(ctx, cdr); err != nil {
