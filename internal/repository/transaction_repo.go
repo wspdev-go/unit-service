@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
 
@@ -20,13 +21,18 @@ type TransactionRepo interface {
 	PutBatch(transaction *dao.Ss7CdrProc) error
 	PutTransaction(transaction *dao.Ss7CdrProc) error
 	FlushCh() <-chan struct{}
+	GetConnValid() bool
+	SetConnValid(valid bool)
+	ConnRecovery(ctx context.Context) error
 }
 
 type transactionRepo struct {
-	conn      clickhouse.Conn
-	batchBuff []dao.Ss7CdrProc
-	mu        sync.Mutex
-	flushCh   chan struct{}
+	conn        clickhouse.Conn
+	store       store.TransactionStore
+	batchBuff   []dao.Ss7CdrProc
+	mu          sync.Mutex
+	flushCh     chan struct{}
+	isConnValid bool
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -38,6 +44,7 @@ func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
 
 	return &transactionRepo{
 		conn:      conn,
+		store:     store,
 		batchBuff: make([]dao.Ss7CdrProc, 0, batchSize), // Initialize batch buffer with a reasonable capacity
 		flushCh:   make(chan struct{}, 1),
 	}, nil
@@ -252,4 +259,39 @@ func (repo *transactionRepo) restoreFailedBatch(buff []dao.Ss7CdrProc) {
 	defer repo.mu.Unlock()
 
 	repo.batchBuff = append(buff, repo.batchBuff...)
+}
+
+func (repo *transactionRepo) GetConnValid() bool {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+
+	return repo.isConnValid
+}
+
+func (repo *transactionRepo) SetConnValid(valid bool) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	
+	repo.isConnValid = valid
+}
+
+func (repo *transactionRepo) ConnRecovery(ctx context.Context) error {
+	ticker := time.NewTicker(300 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if repo.GetConnValid() {
+				return nil
+			}
+
+			if err := repo.store.Ping(); err == nil {
+				repo.SetConnValid(true)
+				return nil
+			}
+		}
+	}
 }
