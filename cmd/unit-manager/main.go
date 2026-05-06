@@ -53,5 +53,5 @@ func main() {
 		}
 	}()
 
-	app.RunApp()
+	application.RunApp()
 }

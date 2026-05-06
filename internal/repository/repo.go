@@ -3,9 +3,9 @@ package repository
 import "unit-service/internal/store"
 
 type Repository interface {
-	GetReference() ReferenceRepo
-	GetQueue() QueueRepo
-	GetTransaction() TransactionRepo
+	GetReference() (ReferenceRepo, error)
+	GetQueue() (QueueRepo, error)
+	GetTransaction() (TransactionRepo, error)
 }
 
 type repo struct {
@@ -21,38 +21,54 @@ func NewRepository(store store.Store) Repository {
 	}
 }
 
-func (r *repo) GetReference() ReferenceRepo {
+func (r *repo) GetReference() (ReferenceRepo, error) {
 	if r.Reference != nil {
-		return r.Reference
+		return r.Reference, nil
 	}
+
+	var err error
 
 	refStore := r.store.GetReference()
 
-	r.Reference = NewReferenceRepo(refStore)
+	r.Reference, err = NewReferenceRepo(refStore)
+	if err != nil {
+		return nil, err
+	}
 
-	return r.Reference
+	return r.Reference, nil
 }
 
-func (r *repo) GetQueue() QueueRepo {
+func (r *repo) GetQueue() (QueueRepo, error) {
 	if r.Queue != nil {
-		return r.Queue
+		return r.Queue, nil
 	}
+
+	var err error
 
 	qStore := r.store.GetQueue()
 
-	r.Queue = NewQueueRepo(qStore)
+	r.Queue, err = NewQueueRepo(qStore)
 
-	return r.Queue
+	if err != nil {
+		return nil, err
+	}
+
+	return r.Queue, nil
 }
 
-func (r *repo) GetTransaction() TransactionRepo {
+func (r *repo) GetTransaction() (TransactionRepo, error) {
 	if r.Transaction != nil {
-		return r.Transaction
+		return r.Transaction, nil
 	}
+
+	var err error
 
 	txStore := r.store.GetTransaction()
 
-	r.Transaction = NewTransactionRepo(txStore)
+	r.Transaction, err = NewTransactionRepo(txStore)
+	if err != nil {
+		return nil, err
+	}
 
-	return r.Transaction
+	return r.Transaction, nil
 }
