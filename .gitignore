@@ -1,1 +1,8 @@
 .idea/vcs.xml
+bin/
+vendor/
+*.log
+.env
+.idea/
+.vscode/
+coverage.out
