@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	consumerQueueList = "default_cdrfeed" //"consumer_queue_list"
+	consumerQueueList = "default_tr_consumer" //"consumer_queue_list"
 	producerQueueList = "producer_queue_list"
 )
 
 type QueueRepo interface {
-	Consume(ctx context.Context) (*dto.SS7CDR, error)
-	Publish(ctx context.Context, cdr *dto.SS7CDR) error
+	Consume(ctx context.Context) (*dto.Transaction, error)
+	Publish(ctx context.Context, tr *dto.Transaction) error
 }
 
 type queueRepo struct {
@@ -38,7 +38,7 @@ func NewQueueRepo(store store.QueueStore) (QueueRepo, error) {
 	}, nil
 }
 
-func (repo *queueRepo) Consume(ctx context.Context) (*dto.SS7CDR, error) {
+func (repo *queueRepo) Consume(ctx context.Context) (*dto.Transaction, error) {
 	if repo.client == nil {
 		return nil, errors.New("redis client is nil")
 	}
@@ -55,24 +55,24 @@ func (repo *queueRepo) Consume(ctx context.Context) (*dto.SS7CDR, error) {
 		return nil, fmt.Errorf("unexpected BRPOP result: %v", result)
 	}
 
-	var cdr dto.SS7CDR
-	if err := json.Unmarshal([]byte(result[1]), &cdr); err != nil {
+	var tr dto.Transaction
+	if err := json.Unmarshal([]byte(result[1]), &tr); err != nil {
 		return nil, err
 	}
 
-	return &cdr, nil
+	return &tr, nil
 }
 
-func (repo *queueRepo) Publish(ctx context.Context, cdr *dto.SS7CDR) error {
+func (repo *queueRepo) Publish(ctx context.Context, tr *dto.Transaction) error {
 	if repo.client == nil {
 		return errors.New("redis client is nil")
 	}
 
-	if cdr == nil {
-		return errors.New("cdr is nil")
+	if tr == nil {
+		return errors.New("tr is nil")
 	}
 
-	payload, err := json.Marshal(cdr)
+	payload, err := json.Marshal(tr)
 	if err != nil {
 		return err
 	}

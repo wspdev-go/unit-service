@@ -22,7 +22,7 @@ func main() {
 			_ = http.ListenAndServe("localhost:6060", nil)
 		}()
 
-		f, err := os.Create("CDR-trace.out")
+		f, err := os.Create("Unit-trace.out")
 		if err != nil {
 			log.Fatal(err)
 		}

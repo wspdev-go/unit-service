@@ -10,9 +10,15 @@ import (
 
 const batchTimeout = 300
 
+type TransactionConnUsecase interface {
+	GetConnValid() bool
+	ConnRecovery(ctx context.Context) error
+}
+
 type TransactionUsecase interface {
 	Run(ctx context.Context) error
 	Handler(ctx context.Context, transaction *dto.Transaction) error
+	TransactionConnUsecase
 }
 
 type transactionUsecase struct {
@@ -38,20 +44,30 @@ func (u *transactionUsecase) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			u.pushTransaction()
+			if err := u.pushTransaction(ctx); err != nil {
+				logger.Error("error pushing transactions: %v", err)
+				u.repo.SetConnValid(false)
+			}
 		case <-u.repo.FlushCh():
-			u.pushTransaction()
+			if err := u.pushTransaction(ctx); err != nil {
+				logger.Error("error pushing transactions: %v", err)
+				u.repo.SetConnValid(false)
+			}
 		}
 	}
 }
 
-func (u *transactionUsecase) pushTransaction() {
-	batchCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (u *transactionUsecase) pushTransaction(ctx context.Context) error {
+	if !u.repo.GetConnValid() {
+		return nil
+	}
+	batchCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	if err := u.repo.PushBatchTransaction(batchCtx); err != nil {
-		logger.Error("error pushing transactions: %v", err)
+		return err
 	}
+	return nil
 }
 
 func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.Transaction) error {
@@ -75,4 +91,12 @@ func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.Trans
 		return err
 	}
 	return nil
+}
+
+func (u *transactionUsecase) GetConnValid() bool {
+	return u.repo.GetConnValid()
+}
+
+func (u *transactionUsecase) ConnRecovery(ctx context.Context) error {
+	return u.repo.ConnRecovery(ctx)
 }

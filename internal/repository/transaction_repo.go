@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
 
@@ -17,16 +18,21 @@ const batchSize = 1000
 
 type TransactionRepo interface {
 	PushBatchTransaction(ctx context.Context) error
-	PutBatch(transaction *dao.Ss7CdrProc) error
-	PutTransaction(transaction *dao.Ss7CdrProc) error
+	PutBatch(transaction *dao.Transaction) error
+	PutTransaction(transaction *dao.Transaction) error
 	FlushCh() <-chan struct{}
+	GetConnValid() bool
+	SetConnValid(valid bool)
+	ConnRecovery(ctx context.Context) error
 }
 
 type transactionRepo struct {
-	conn      clickhouse.Conn
-	batchBuff []dao.Ss7CdrProc
-	mu        sync.Mutex
-	flushCh   chan struct{}
+	conn        clickhouse.Conn
+	store       store.TransactionStore
+	batchBuff   []dao.Transaction
+	mu          sync.Mutex
+	flushCh     chan struct{}
+	isConnValid bool
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -38,119 +44,33 @@ func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
 
 	return &transactionRepo{
 		conn:      conn,
-		batchBuff: make([]dao.Ss7CdrProc, 0, batchSize), // Initialize batch buffer with a reasonable capacity
+		store:     store,
+		batchBuff: make([]dao.Transaction, 0, batchSize), // Initialize batch buffer with a reasonable capacity
 		flushCh:   make(chan struct{}, 1),
 	}, nil
 }
 
-func (repo *transactionRepo) PutTransaction(transaction *dao.Ss7CdrProc) error {
+func (repo *transactionRepo) PutTransaction(transaction *dao.Transaction) error {
 	if repo.conn == nil {
 		return errors.New("conn is nil")
 	}
 
-	query := getRepoInsQuery(dao.Ss7CdrProc{})
+	query := getRepoInsQuery(dao.Transaction{})
 
-	if err := repo.conn.Exec(context.Background(), query, getCdrFields(transaction)...); err != nil {
+	if err := repo.conn.Exec(context.Background(), query, gettrFields(transaction)...); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func getCdrFields(cdr *dao.Ss7CdrProc) []any {
+func gettrFields(tr *dao.Transaction) []any {
 	return []any{
-		cdr.MsgDate,
-		cdr.MsgDtUs,
-		cdr.MsgExpiryDt,
-
-		cdr.ExtMsgID,
-		cdr.ProxyMsgID,
-		cdr.InternalMsgID,
-		cdr.TranMsgID,
-
-		// IP and Port information
-		cdr.SrcIP,
-		cdr.SrcPort,
-		cdr.DstIP,
-		cdr.DstPort,
-
-		// Message types and kinds
-		cdr.MsgType,
-		cdr.MsgKind,
-		cdr.MsuType,
-		cdr.Type,
-
-		// Direction
-		cdr.Direction,
-
-		// Result information
-		cdr.ResultCode,
-		cdr.ResultStatus,
-
-		// Message addresses
-		cdr.SenderOA,
-		cdr.DestinationDA,
-
-		cdr.OPC,
-		cdr.DPC,
-
-		cdr.SccpCarrier,
-		cdr.SccpClgpaGt,
-		cdr.SccpClgpaTt,
-		cdr.SccpClgpaSsn,
-		cdr.SccpCldpaGt,
-		cdr.SccpCldpaTt,
-		cdr.SccpCldpaSsn,
-
-		cdr.TcapID,
-
-		cdr.MapScentreAddr,
-		cdr.MapMscGt,
-		cdr.MapImsi,
-		cdr.MapOpco,
-
-		cdr.CustomerAccount,
-		cdr.CustomerAccountID,
-		cdr.SupplierAccount,
-		cdr.SupplierAccountID,
-
-		cdr.SignallingConnLink,
-		cdr.SignallingConnLinkID,
-
-		cdr.DestinationCountry,
-		cdr.DestinationCountryID,
-		cdr.DestinationOperator,
-		cdr.DestinationOperatorID,
-
-		cdr.EsmClass,
-		cdr.DataCoding,
-		cdr.Pid64,
-		cdr.MsgTextLen,
-		cdr.Udh,
-		cdr.MsgRefNum,
-		cdr.MsgTotalNum,
-		cdr.MsgPartNum,
-
-		// DLR information
-		cdr.DlrErr,
-		cdr.DlrStat,
-
-		// Retry information
-		cdr.RetryPattern,
-		cdr.RetryError,
-		cdr.RetryAttempt,
-
-		cdr.RoutingType,
-		cdr.TransformationRuleID,
-
-		cdr.MsgData,
-		cdr.MsgDataBin,
-		cdr.UdhData,
-		cdr.UdhDataBin,
+		tr.TrDate,
 	}
 }
 
-func getRepoInsQuery(obj dao.Ss7CdrProc) string {
+func getRepoInsQuery(obj dao.Transaction) string {
 	t := reflect.TypeOf(obj)
 
 	columns := make([]string, 0)
@@ -168,7 +88,7 @@ func getRepoInsQuery(obj dao.Ss7CdrProc) string {
 
 	sql := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
-		" cdr",
+		" tr",
 		strings.Join(columns, ", "),
 		strings.Join(placeholders, ", "),
 	)
@@ -176,7 +96,7 @@ func getRepoInsQuery(obj dao.Ss7CdrProc) string {
 	return sql
 }
 
-func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
+func (repo *transactionRepo) PutBatch(transaction *dao.Transaction) error {
 	if transaction == nil {
 		return errors.New("transaction is nil")
 	}
@@ -212,24 +132,24 @@ func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 		return nil
 	}
 
-	buff := make([]dao.Ss7CdrProc, len(repo.batchBuff))
+	buff := make([]dao.Transaction, len(repo.batchBuff))
 	copy(buff, repo.batchBuff)
-	repo.batchBuff = make([]dao.Ss7CdrProc, 0, 3*batchSize)
+	repo.batchBuff = make([]dao.Transaction, 0, 3*batchSize)
 
 	repo.mu.Unlock()
 
 	return repo.runPush(ctx, buff)
 }
 
-func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc) error {
-	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
+func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Transaction) error {
+	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Transaction{}))
 	if err != nil {
 		repo.restoreFailedBatch(buff)
 		return err
 	}
 
-	for _, cdr := range buff {
-		if err = batch.Append(getCdrFields(&cdr)...); err != nil {
+	for _, tr := range buff {
+		if err = batch.Append(gettrFields(&tr)...); err != nil {
 			_ = batch.Abort()
 			repo.restoreFailedBatch(buff)
 			return err
@@ -247,9 +167,44 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 	return nil
 }
 
-func (repo *transactionRepo) restoreFailedBatch(buff []dao.Ss7CdrProc) {
+func (repo *transactionRepo) restoreFailedBatch(buff []dao.Transaction) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 
 	repo.batchBuff = append(buff, repo.batchBuff...)
+}
+
+func (repo *transactionRepo) GetConnValid() bool {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+
+	return repo.isConnValid
+}
+
+func (repo *transactionRepo) SetConnValid(valid bool) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+
+	repo.isConnValid = valid
+}
+
+func (repo *transactionRepo) ConnRecovery(ctx context.Context) error {
+	ticker := time.NewTicker(300 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if repo.GetConnValid() {
+				return nil
+			}
+
+			if err := repo.store.Ping(); err == nil {
+				repo.SetConnValid(true)
+				return nil
+			}
+		}
+	}
 }

@@ -1,15 +1,24 @@
 package dto
 
+import (
+	"time"
+	"unit-service/internal/model/dao"
+)
+
 type Transaction struct {
 	TrID              string `json:"msg_id"`
 	TransactionLinkID int    `json:"transaction_link_id"`
-	TrData            string `json:"msg_data"`
+	TrDate            string `json:"msg_date"`
 }
 
-func ConvertTransaction(tr *Transaction) *Transaction {
-	return &Transaction{
+func ConvertTransaction(tr *Transaction) *dao.Transaction {
+	trDate, err := time.Parse("2006-01-02", tr.TrDate)
+	if err != nil {
+		return nil
+	}
+	return &dao.Transaction{
 		TrID:              tr.TrID,
 		TransactionLinkID: tr.TransactionLinkID,
-		TrData:            tr.TrData,
+		TrDate:            trDate,
 	}
 }

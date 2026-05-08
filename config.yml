@@ -1,9 +1,9 @@
 reference-db:
   "Host": "192.168.8.143"
   "Port": 3306
-  "Username": "undev"
-  "Password": "unpass"
-  "Database": "mydb"
+  "Username": "username"
+  "Password": "pass"
+  "Database": "refdb"
 queue-db:
   "Host": "192.168.8.143"
   "Port": 6379
@@ -16,9 +16,9 @@ queue-db:
 transaction-db:
   "Host": "192.168.8.143"
   "Port": 18002
-  "Username": "default"
-  "Password": "dctest"
-  "Database": "cdr_dwh"
+  "Username": "username"
+  "Password": "pass"
+  "Database": "tr_dwh"
   "DialTimeout": 10
   "MaxOpenConns": 100
   "MaxIdleConns": 100
