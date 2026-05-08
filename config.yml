@@ -18,7 +18,7 @@ transaction-db:
   "Port": 18002
   "Username": "username"
   "Password": "pass"
-  "Database": "tr_dwh"
+  "Database": "tr_db"
   "DialTimeout": 10
   "MaxOpenConns": 100
   "MaxIdleConns": 100
