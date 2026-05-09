@@ -12,6 +12,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"time"
 	"unit-service/internal/model/dto"
 	"unit-service/internal/repository"
@@ -90,7 +91,7 @@ func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.Trans
 
 	link, ok := u.reference.GetM3UaLink(transaction.TransactionLinkID)
 	if !ok {
-		//return fmt.Errorf("Signal link not found: %d", transaction.SigtranLinkID)
+		return fmt.Errorf("signal link not found: %d", transaction.TransactionLinkID)
 	}
 
 	_ = link
