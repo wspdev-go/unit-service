@@ -76,6 +76,7 @@ func (r *Config) readFile(configPath string) error {
 	}()
 
 	decoder := yaml.NewDecoder(f)
+	decoder.KnownFields(true)
 	err = decoder.Decode(r)
 	if err != nil {
 		logger.Error("Can't decode config file: %s", configPath)
