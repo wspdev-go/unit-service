@@ -58,9 +58,6 @@ func (u *transactionUsecase) Run(ctx context.Context) error {
 }
 
 func (u *transactionUsecase) pushTransaction(ctx context.Context) error {
-	if !u.repo.GetConnValid() {
-		return nil
-	}
 	batchCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 

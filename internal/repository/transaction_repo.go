@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
@@ -32,7 +33,7 @@ type transactionRepo struct {
 	batchBuff   []dao.Ss7CdrProc
 	mu          sync.Mutex
 	flushCh     chan struct{}
-	isConnValid bool
+	isConnValid atomic.Bool
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -188,21 +189,15 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
 		return errors.New("transaction is nil")
 	}
 
-	needSignal := false
-
 	repo.mu.Lock()
 	repo.batchBuff = append(repo.batchBuff, *transaction)
 	if len(repo.batchBuff) >= batchSize {
-		needSignal = true
-	}
-	repo.mu.Unlock()
-
-	if needSignal {
 		select {
 		case repo.flushCh <- struct{}{}:
 		default:
 		}
 	}
+	repo.mu.Unlock()
 
 	return nil
 }
@@ -215,6 +210,11 @@ func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 	repo.mu.Lock()
 
 	if len(repo.batchBuff) == 0 {
+		repo.mu.Unlock()
+		return nil
+	}
+
+	if !repo.GetConnValid() {
 		repo.mu.Unlock()
 		return nil
 	}
@@ -262,17 +262,11 @@ func (repo *transactionRepo) restoreFailedBatch(buff []dao.Ss7CdrProc) {
 }
 
 func (repo *transactionRepo) GetConnValid() bool {
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
-
-	return repo.isConnValid
+	return repo.isConnValid.Load()
 }
 
 func (repo *transactionRepo) SetConnValid(valid bool) {
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
-	
-	repo.isConnValid = valid
+	repo.isConnValid.Store(valid)
 }
 
 func (repo *transactionRepo) ConnRecovery(ctx context.Context) error {
