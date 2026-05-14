@@ -185,17 +185,11 @@ func (repo *transactionRepo) restoreFailedBatch(buff []dao.Transaction) {
 }
 
 func (repo *transactionRepo) GetConnValid() bool {
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
-
-	return repo.isConnValid
+	return repo.isConnValid.Load()
 }
 
 func (repo *transactionRepo) SetConnValid(valid bool) {
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
-
-	repo.isConnValid = valid
+	repo.isConnValid.Store(valid)
 }
 
 func (repo *transactionRepo) ConnRecovery(ctx context.Context) error {

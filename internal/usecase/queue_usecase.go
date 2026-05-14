@@ -117,7 +117,7 @@ loop:
 	return err
 }
 
-func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.SS7CDR, workerID int) {
+func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.Transaction, workerID int) {
 	for cdr := range jobsCh {
 
 		ctxTimeout, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
