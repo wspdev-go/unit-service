@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
@@ -42,7 +43,7 @@ type transactionRepo struct {
 	batchBuff   []dao.Transaction
 	mu          sync.Mutex
 	flushCh     chan struct{}
-	isConnValid bool
+	isConnValid atomic.Bool
 }
 
 func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
@@ -111,21 +112,15 @@ func (repo *transactionRepo) PutBatch(transaction *dao.Transaction) error {
 		return errors.New("transaction is nil")
 	}
 
-	needSignal := false
-
 	repo.mu.Lock()
 	repo.batchBuff = append(repo.batchBuff, *transaction)
 	if len(repo.batchBuff) >= batchSize {
-		needSignal = true
-	}
-	repo.mu.Unlock()
-
-	if needSignal {
 		select {
 		case repo.flushCh <- struct{}{}:
 		default:
 		}
 	}
+	repo.mu.Unlock()
 
 	return nil
 }
@@ -138,6 +133,11 @@ func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
 	repo.mu.Lock()
 
 	if len(repo.batchBuff) == 0 {
+		repo.mu.Unlock()
+		return nil
+	}
+
+	if !repo.GetConnValid() {
 		repo.mu.Unlock()
 		return nil
 	}

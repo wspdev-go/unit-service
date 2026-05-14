@@ -101,6 +101,7 @@ loop:
 		select {
 		case jobsCh <- tr:
 		case <-ctx.Done():
+			err = ctx.Err()
 			break loop
 		}
 
@@ -109,27 +110,23 @@ loop:
 			continue
 		}*/
 	}
+	close(jobsCh)
+
 	wg.Wait()
 
 	return err
 }
 
-func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.Transaction, workerID int) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case tr, ok := <-jobsCh:
-			if !ok {
-				return
-			}
-			ctxTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
-			err := u.transactionUc.Handler(ctxTimeout, tr)
-			if err != nil {
-				logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, tr, err)
-			}
-			cancel()
+func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.SS7CDR, workerID int) {
+	for cdr := range jobsCh {
+
+		ctxTimeout, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+
+		err := u.transactionUc.Handler(ctxTimeout, cdr)
+		if err != nil {
+			logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, cdr, err)
 		}
+		cancel()
 
 		// later:
 		// if err := u.repo.Publish(ctx, tr); err != nil {
