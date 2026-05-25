@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	namespace = "transaction"
-	subsystem = "trace"
-	addr      = "localhost:11001"
+	namespace = "UnitService"
+	subsystem = "transaction"
+	addr      = ":11001"
 )
 
 var TransactionInVec *prometheus.CounterVec
