@@ -240,6 +240,7 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 		if err = batch.Append(getCdrFields(&cdr)...); err != nil {
 			_ = batch.Abort()
 			repo.restoreFailedBatch(buff)
+			metrics.TransactionErrTotal.Inc()
 			return err
 		}
 	}
@@ -247,6 +248,7 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 	if err = batch.Send(); err != nil {
 		_ = batch.Abort()
 		repo.restoreFailedBatch(buff)
+		metrics.TransactionErrTotal.Add(float64(len(buff)))
 		return err
 	}
 	metrics.TransactionInVec.WithLabelValues("TransactionIn").Add(float64(len(buff)))
