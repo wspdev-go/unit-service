@@ -105,7 +105,7 @@ loop:
 
 func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.SS7CDR, workerID int) {
 	for cdr := range jobsCh {
-
+		//TODO: add metric read cdr from queue
 		ctxTimeout, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 
 		err := u.transactionUc.Handler(ctxTimeout, cdr)
