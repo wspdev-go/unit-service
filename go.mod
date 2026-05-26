@@ -4,9 +4,11 @@ go 1.25.0
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.45.0
+	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.18.0
+	gitlab.horisen.org/horisen/ss7/hstplib v0.0.0
 	golang.org/x/sync v0.20.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.6.0
@@ -27,6 +29,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect
+	github.com/mdobak/go-xerrors v0.3.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
@@ -44,3 +47,5 @@ require (
 	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 )
+
+replace gitlab.horisen.org/horisen/ss7/hstplib => /Users/andryarys/go/src/gitlab.horisen.org/horisen/ss7/hstplib
