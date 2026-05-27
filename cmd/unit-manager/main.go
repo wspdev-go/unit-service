@@ -47,21 +47,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	requiredDeps := []app.Dependency{
-		app.DepReference,
-		app.DepQueue,
-		app.DepTransaction,
-	}
-
-	if err = application.RunDependency(requiredDeps...); err != nil {
+	if err := application.RunQueuePipeline(); err != nil {
 		log.Fatal(err)
 	}
-
-	defer func() {
-		if err := application.StopDependency(requiredDeps...); err != nil {
-			log.Printf("close connections: %v", err)
-		}
-	}()
-
-	application.RunApp()
 }

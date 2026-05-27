@@ -21,6 +21,7 @@ import (
 	"time"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
+	"unit-service/metrics"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
@@ -162,6 +163,7 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Transaction
 		if err = batch.Append(gettrFields(&tr)...); err != nil {
 			_ = batch.Abort()
 			repo.restoreFailedBatch(buff)
+			metrics.TransactionErrTotal.Inc()
 			return err
 		}
 	}
@@ -169,9 +171,10 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Transaction
 	if err = batch.Send(); err != nil {
 		_ = batch.Abort()
 		repo.restoreFailedBatch(buff)
+		metrics.TransactionErrTotal.Add(float64(len(buff)))
 		return err
 	}
-
+	metrics.TransactionInVec.WithLabelValues("TransactionIn").Add(float64(len(buff)))
 	batch = nil
 
 	return nil
