@@ -2,24 +2,19 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"unit-service/internal/config"
-	"unit-service/internal/repository"
 	"unit-service/internal/store"
 	"unit-service/internal/usecase"
 	"unit-service/logger"
-
-	"golang.org/x/sync/errgroup"
 )
 
 type App struct {
 	Config *config.Config
 	Store  store.Store
-	Repo   repository.Repository
 }
 
 func NewApp(configPath string) (*App, error) {
@@ -32,63 +27,32 @@ func NewApp(configPath string) (*App, error) {
 
 	st := store.NewStore(cfg)
 
-	repo := repository.NewRepository(st)
-
 	return &App{
 		Config: cfg,
 		Store:  st,
-		Repo:   repo,
 	}, nil
 }
 
-func (a *App) RunApp() {
-	// Start the application logic here
-	// This function can be used to run the main application loop, handle requests, etc.
+func (a *App) RunQueuePipeline() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	uc := usecase.NewUsecase(a.Repo)
-
-	refUc, err := uc.GetReferenceUsecase()
-	if err != nil {
-		logger.Error("error initializing reference use case: %v", err)
-		return
+	requiredDeps := []Dependency{
+		DepReference,
+		DepQueue,
+		DepTransaction,
 	}
 
-	if err = refUc.Run(ctx); err != nil {
-		logger.Error("error loading reference data: %v", err)
-		return
+	if err := a.RunDependency(requiredDeps...); err != nil {
+		return err
 	}
 
-	transactionUc, err := uc.GetTransactionUsecase()
-	if err != nil {
-		logger.Error("error initializing transaction use case: %v", err)
-		return
-	}
-
-	queueUc, err := uc.GetQueueUsecase()
-	if err != nil {
-		logger.Error("Error initializing queue use case: %v", err)
-		return
-	}
-
-	g, groupCtx := errgroup.WithContext(ctx)
-
-	g.Go(func() error {
-		return transactionUc.Run(groupCtx)
-	})
-
-	g.Go(func() error {
-		return queueUc.Run(groupCtx)
-	})
-
-	if err = g.Wait(); err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			logger.Info("application stopped")
-			return
+	defer func() {
+		if err := a.StopDependency(requiredDeps...); err != nil {
+			logger.Error("close connections: %v", err)
 		}
+	}()
 
-		logger.Error("error running application workers: %v", err)
-		return
-	}
+	uc := usecase.NewUsecase(a.Store)
+	return uc.RunQueuePipeline(ctx)
 }

@@ -1,11 +1,15 @@
 package usecase
 
-import "unit-service/internal/repository"
+import (
+	"context"
+	"unit-service/internal/repository"
+	"unit-service/internal/store"
+
+	"golang.org/x/sync/errgroup"
+)
 
 type Usecase interface {
-	GetReferenceUsecase() (ReferenceUsecase, error)
-	GetTransactionUsecase() (TransactionUsecase, error)
-	GetQueueUsecase() (QueueUsecase, error)
+	RunQueuePipeline(ctx context.Context) error
 }
 
 type usecase struct {
@@ -15,8 +19,43 @@ type usecase struct {
 	queue       QueueUsecase
 }
 
-func NewUsecase(repo repository.Repository) Usecase {
+func NewUsecase(store store.Store) Usecase {
+	repo := repository.NewRepository(store)
 	return &usecase{repo: repo}
+}
+
+func (u *usecase) RunQueuePipeline(ctx context.Context) error {
+	referenceUc, err := u.GetReferenceUsecase()
+	if err != nil {
+		return err
+	}
+
+	transactionUc, err := u.GetTransactionUsecase()
+	if err != nil {
+		return err
+	}
+
+	queueUc, err := u.GetQueueUsecase()
+	if err != nil {
+		return err
+	}
+
+	// Bootstrap the reference snapshot before starting long-running workers.
+	if err := referenceUc.Run(ctx); err != nil {
+		return err
+	}
+
+	g, groupCtx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return transactionUc.Run(groupCtx)
+	})
+
+	g.Go(func() error {
+		return queueUc.Run(groupCtx)
+	})
+
+	return g.Wait()
 }
 
 func (u *usecase) GetReferenceUsecase() (ReferenceUsecase, error) {
@@ -40,7 +79,9 @@ func (u *usecase) GetTransactionUsecase() (TransactionUsecase, error) {
 		return u.transaction, nil
 	}
 
-	refUc, err := u.GetReferenceUsecase()
+	var err error
+
+	u.reference, err = u.GetReferenceUsecase()
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +91,7 @@ func (u *usecase) GetTransactionUsecase() (TransactionUsecase, error) {
 		return nil, err
 	}
 
-	u.transaction = NewTransactionUsecase(repoTransaction, refUc)
+	u.transaction = NewTransactionUsecase(repoTransaction, u.reference)
 
 	return u.transaction, nil
 }
@@ -58,6 +99,13 @@ func (u *usecase) GetTransactionUsecase() (TransactionUsecase, error) {
 func (u *usecase) GetQueueUsecase() (QueueUsecase, error) {
 	if u.queue != nil {
 		return u.queue, nil
+	}
+
+	var err error
+
+	u.transaction, err = u.GetTransactionUsecase()
+	if err != nil {
+		return nil, err
 	}
 
 	repoQueue, err := u.repo.GetQueue()
