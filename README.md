@@ -220,7 +220,7 @@ Current goals of this model:
 ## Performance
 
 The framework is designed for high-throughput transaction processing.  
-Under the current implementation and benchmark conditions, the target processing rate is **up to 3,000 transactions per second (TPS)**.
+Under the current implementation and benchmark conditions, the target processing rate is **up to 4,000 transactions per second (TPS)**.
 
 The achieved throughput depends on several factors, including:
 
