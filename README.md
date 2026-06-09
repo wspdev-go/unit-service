@@ -233,6 +233,7 @@ The achieved throughput depends on several factors, including:
 The following benchmark demonstrates the current performance characteristics of the framework:
 
 ![Performance Benchmark](docs/images/performance_metrics.png)
+![Errors Benchmark](docs/images/trace_errors.png)
 
 ## Robustness
 
