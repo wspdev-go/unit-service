@@ -6,23 +6,27 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 	"unit-service/internal/model/dao"
 	"unit-service/internal/store"
+	"unit-service/logger"
 	"unit-service/metrics"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
-const batchSize = 1000
+const (
+	batchSize         = 1000
+	batchChanBuffSize = 3 * batchSize
+	batchFlushTimeout = 300 * time.Millisecond
+	batchPushTimeout  = 3 * time.Second
+)
 
 type TransactionRepo interface {
-	PushBatchTransaction(ctx context.Context) error
-	PutBatch(transaction *dao.Ss7CdrProc) error
+	RunBatchWriter(ctx context.Context) error
+	PutBatch(ctx context.Context, transaction *dao.Ss7CdrProc) error
 	PutTransaction(transaction *dao.Ss7CdrProc) error
-	FlushCh() <-chan struct{}
 	GetConnValid() bool
 	SetConnValid(valid bool)
 	ConnRecovery(ctx context.Context) error
@@ -31,9 +35,7 @@ type TransactionRepo interface {
 type transactionRepo struct {
 	conn        clickhouse.Conn
 	store       store.TransactionStore
-	batchBuff   []dao.Ss7CdrProc
-	mu          sync.Mutex
-	flushCh     chan struct{}
+	batchCh     chan dao.Ss7CdrProc
 	isConnValid atomic.Bool
 }
 
@@ -45,10 +47,9 @@ func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
 	}
 
 	return &transactionRepo{
-		conn:      conn,
-		store:     store,
-		batchBuff: make([]dao.Ss7CdrProc, 0, batchSize), // Initialize batch buffer with a reasonable capacity
-		flushCh:   make(chan struct{}, 1),
+		conn:    conn,
+		store:   store,
+		batchCh: make(chan dao.Ss7CdrProc, batchChanBuffSize),
 	}, nil
 }
 
@@ -185,61 +186,49 @@ func getRepoInsQuery(obj dao.Ss7CdrProc) string {
 	return sql
 }
 
-func (repo *transactionRepo) PutBatch(transaction *dao.Ss7CdrProc) error {
+func (repo *transactionRepo) PutBatch(ctx context.Context, transaction *dao.Ss7CdrProc) error {
 	if transaction == nil {
 		return errors.New("transaction is nil")
 	}
 
-	repo.mu.Lock()
-	repo.batchBuff = append(repo.batchBuff, *transaction)
-	if len(repo.batchBuff) >= batchSize {
+	select {
+	case repo.batchCh <- *transaction:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (repo *transactionRepo) RunBatchWriter(ctx context.Context) error {
+	ticker := time.NewTicker(batchFlushTimeout)
+	defer ticker.Stop()
+
+	batch := make([]dao.Ss7CdrProc, 0, batchSize)
+
+	for {
 		select {
-		case repo.flushCh <- struct{}{}:
-		default:
+		case <-ctx.Done():
+			return ctx.Err()
+		case transaction := <-repo.batchCh:
+			batch = append(batch, transaction)
+			if len(batch) >= batchSize {
+				batch = repo.flushBatch(ctx, batch)
+			}
+		case <-ticker.C:
+			batch = repo.flushBatch(ctx, batch)
 		}
 	}
-	repo.mu.Unlock()
-
-	return nil
-}
-
-func (repo *transactionRepo) FlushCh() <-chan struct{} {
-	return repo.flushCh
-}
-
-func (repo *transactionRepo) PushBatchTransaction(ctx context.Context) error {
-	repo.mu.Lock()
-
-	if len(repo.batchBuff) == 0 {
-		repo.mu.Unlock()
-		return nil
-	}
-
-	if !repo.GetConnValid() {
-		repo.mu.Unlock()
-		return nil
-	}
-
-	buff := make([]dao.Ss7CdrProc, len(repo.batchBuff))
-	copy(buff, repo.batchBuff)
-	repo.batchBuff = make([]dao.Ss7CdrProc, 0, 3*batchSize)
-
-	repo.mu.Unlock()
-
-	return repo.runPush(ctx, buff)
 }
 
 func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc) error {
 	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
 	if err != nil {
-		repo.restoreFailedBatch(buff)
 		return err
 	}
 
 	for _, cdr := range buff {
 		if err = batch.Append(getCdrFields(&cdr)...); err != nil {
 			_ = batch.Abort()
-			repo.restoreFailedBatch(buff)
 			metrics.TransactionErrTotal.Inc()
 			return err
 		}
@@ -247,7 +236,6 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 
 	if err = batch.Send(); err != nil {
 		_ = batch.Abort()
-		repo.restoreFailedBatch(buff)
 		metrics.TransactionErrTotal.Add(float64(len(buff)))
 		return err
 	}
@@ -257,11 +245,25 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 	return nil
 }
 
-func (repo *transactionRepo) restoreFailedBatch(buff []dao.Ss7CdrProc) {
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
+func (repo *transactionRepo) flushBatch(ctx context.Context, batch []dao.Ss7CdrProc) []dao.Ss7CdrProc {
+	if len(batch) == 0 {
+		return batch
+	}
 
-	repo.batchBuff = append(buff, repo.batchBuff...)
+	if !repo.GetConnValid() {
+		return batch
+	}
+
+	batchCtx, cancel := context.WithTimeout(ctx, batchPushTimeout)
+	defer cancel()
+
+	if err := repo.runPush(batchCtx, batch); err != nil {
+		logger.Error("error pushing transactions: %v", err)
+		repo.SetConnValid(false)
+		return batch
+	}
+
+	return batch[:0]
 }
 
 func (repo *transactionRepo) GetConnValid() bool {
