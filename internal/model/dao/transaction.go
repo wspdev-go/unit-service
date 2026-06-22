@@ -1,7 +1,10 @@
 package dao
 
 import (
+	"fmt"
 	"math/big"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -96,4 +99,30 @@ type Ss7CdrProc struct {
 	MsgDataBin string `json:"msg_data_bin"`
 	UdhData    string `json:"udh_data"`
 	UdhDataBin string `json:"udh_data_bin"`
+}
+
+func GetRepoInsQuery() string {
+	t := reflect.TypeOf(Ss7CdrProc{})
+
+	columns := make([]string, 0)
+	placeholders := make([]string, 0)
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		col := field.Tag.Get("json")
+		if col == "" || col == "-" {
+			continue
+		}
+
+		columns = append(columns, strings.ReplaceAll(col, ",omitempty", ""))
+		placeholders = append(placeholders, "?")
+	}
+
+	sql := fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES (%s)",
+		" cdr",
+		strings.Join(columns, ", "),
+		strings.Join(placeholders, ", "),
+	)
+
+	return sql
 }

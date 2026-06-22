@@ -3,12 +3,10 @@ package repository
 import (
 	"context"
 	"errors"
-	"fmt"
-	"reflect"
-	"strings"
 	"sync/atomic"
 	"time"
 	"unit-service/internal/model/dao"
+	"unit-service/internal/model/dto"
 	"unit-service/internal/store"
 	"unit-service/logger"
 	"unit-service/metrics"
@@ -58,132 +56,13 @@ func (repo *transactionRepo) PutTransaction(transaction *dao.Ss7CdrProc) error {
 		return errors.New("conn is nil")
 	}
 
-	query := getRepoInsQuery(dao.Ss7CdrProc{})
+	query := dao.GetRepoInsQuery()
 
-	if err := repo.conn.Exec(context.Background(), query, getCdrFields(transaction)...); err != nil {
+	if err := repo.conn.Exec(context.Background(), query, dto.GetTransactionFields(transaction)...); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func getCdrFields(cdr *dao.Ss7CdrProc) []any {
-	return []any{
-		cdr.MsgDate,
-		cdr.MsgDtUs,
-		cdr.MsgExpiryDt,
-
-		cdr.ExtMsgID,
-		cdr.ProxyMsgID,
-		cdr.InternalMsgID,
-		cdr.TranMsgID,
-
-		// IP and Port information
-		cdr.SrcIP,
-		cdr.SrcPort,
-		cdr.DstIP,
-		cdr.DstPort,
-
-		// Message types and kinds
-		cdr.MsgType,
-		cdr.MsgKind,
-		cdr.MsuType,
-		cdr.Type,
-
-		// Direction
-		cdr.Direction,
-
-		// Result information
-		cdr.ResultCode,
-		cdr.ResultStatus,
-
-		// Message addresses
-		cdr.SenderOA,
-		cdr.DestinationDA,
-
-		cdr.OPC,
-		cdr.DPC,
-
-		cdr.SccpCarrier,
-		cdr.SccpClgpaGt,
-		cdr.SccpClgpaTt,
-		cdr.SccpClgpaSsn,
-		cdr.SccpCldpaGt,
-		cdr.SccpCldpaTt,
-		cdr.SccpCldpaSsn,
-
-		cdr.TcapID,
-
-		cdr.MapScentreAddr,
-		cdr.MapMscGt,
-		cdr.MapImsi,
-		cdr.MapOpco,
-
-		cdr.CustomerAccount,
-		cdr.CustomerAccountID,
-		cdr.SupplierAccount,
-		cdr.SupplierAccountID,
-
-		cdr.SignallingConnLink,
-		cdr.SignallingConnLinkID,
-
-		cdr.DestinationCountry,
-		cdr.DestinationCountryID,
-		cdr.DestinationOperator,
-		cdr.DestinationOperatorID,
-
-		cdr.EsmClass,
-		cdr.DataCoding,
-		cdr.Pid64,
-		cdr.MsgTextLen,
-		cdr.Udh,
-		cdr.MsgRefNum,
-		cdr.MsgTotalNum,
-		cdr.MsgPartNum,
-
-		// DLR information
-		cdr.DlrErr,
-		cdr.DlrStat,
-
-		// Retry information
-		cdr.RetryPattern,
-		cdr.RetryError,
-		cdr.RetryAttempt,
-
-		cdr.RoutingType,
-		cdr.TransformationRuleID,
-
-		cdr.MsgData,
-		cdr.MsgDataBin,
-		cdr.UdhData,
-		cdr.UdhDataBin,
-	}
-}
-
-func getRepoInsQuery(obj dao.Ss7CdrProc) string {
-	t := reflect.TypeOf(obj)
-
-	columns := make([]string, 0)
-	placeholders := make([]string, 0)
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		col := field.Tag.Get("json")
-		if col == "" || col == "-" {
-			continue
-		}
-
-		columns = append(columns, strings.ReplaceAll(col, ",omitempty", ""))
-		placeholders = append(placeholders, "?")
-	}
-
-	sql := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES (%s)",
-		" cdr",
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "),
-	)
-
-	return sql
 }
 
 func (repo *transactionRepo) PutBatch(ctx context.Context, transaction *dao.Ss7CdrProc) error {
@@ -200,6 +79,7 @@ func (repo *transactionRepo) PutBatch(ctx context.Context, transaction *dao.Ss7C
 }
 
 func (repo *transactionRepo) RunBatchWriter(ctx context.Context) error {
+	// WorkerPool pattern to flush batch of transactions to ClickHouse
 	ticker := time.NewTicker(batchFlushTimeout)
 	defer ticker.Stop()
 
@@ -221,13 +101,13 @@ func (repo *transactionRepo) RunBatchWriter(ctx context.Context) error {
 }
 
 func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc) error {
-	batch, err := repo.conn.PrepareBatch(ctx, getRepoInsQuery(dao.Ss7CdrProc{}))
+	batch, err := repo.conn.PrepareBatch(ctx, dao.GetRepoInsQuery())
 	if err != nil {
 		return err
 	}
 
 	for _, cdr := range buff {
-		if err = batch.Append(getCdrFields(&cdr)...); err != nil {
+		if err = batch.Append(dto.GetTransactionFields(&cdr)...); err != nil {
 			_ = batch.Abort()
 			metrics.TransactionErrTotal.Inc()
 			return err
