@@ -79,12 +79,11 @@ func (repo *transactionRepo) PutBatch(ctx context.Context, transaction *dao.Ss7C
 }
 
 func (repo *transactionRepo) RunBatchWriter(ctx context.Context) error {
-	//TODO: WorkerPool pattern to flush batch of transactions to ClickHouse
 	ticker := time.NewTicker(batchFlushTimeout)
 	defer ticker.Stop()
 
 	batch := make([]dao.Ss7CdrProc, 0, batchSize)
-	//TODO: Do by semafor
+
 	for {
 		select {
 		case <-ctx.Done():
