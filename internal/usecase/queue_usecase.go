@@ -118,13 +118,13 @@ loop:
 }
 
 func (u *queueUsecase) runWorker(ctx context.Context, jobsCh <-chan *dto.Transaction, workerID int) {
-	for cdr := range jobsCh {
-		//TODO: add metric read cdr from queue
+	for tr := range jobsCh {
+		//TODO: add metric read tr from queue
 		ctxTimeout, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 
-		err := u.transactionUc.Handler(ctxTimeout, cdr)
+		err := u.transactionUc.Handler(ctxTimeout, tr)
 		if err != nil {
-			logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, cdr, err)
+			logger.Error("worker %d failed to process transaction: %v, error: %v", workerID, tr, err)
 		}
 		cancel()
 

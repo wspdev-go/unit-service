@@ -33,8 +33,8 @@ const (
 
 type TransactionRepo interface {
 	RunBatchWriter(ctx context.Context) error
-	PutBatch(ctx context.Context, transaction *dao.Ss7CdrProc) error
-	PutTransaction(transaction *dao.Ss7CdrProc) error
+	PutBatch(ctx context.Context, transaction *dao.TrProc) error
+	PutTransaction(transaction *dao.TranProc) error
 	GetConnValid() bool
 	SetConnValid(valid bool)
 	ConnRecovery(ctx context.Context) error
@@ -43,7 +43,7 @@ type TransactionRepo interface {
 type transactionRepo struct {
 	conn        clickhouse.Conn
 	store       store.TransactionStore
-	batchCh     chan dao.Ss7CdrProc
+	batchCh     chan dao.TranProc
 	isConnValid atomic.Bool
 }
 
@@ -57,7 +57,7 @@ func NewTransactionRepo(store store.TransactionStore) (TransactionRepo, error) {
 	return &transactionRepo{
 		conn:    conn,
 		store:   store,
-		batchCh: make(chan dao.Ss7CdrProc, batchChanBuffSize),
+		batchCh: make(chan dao.TranProc, batchChanBuffSize),
 	}, nil
 }
 
@@ -75,7 +75,7 @@ func (repo *transactionRepo) PutTransaction(transaction *dao.Transaction) error 
 	return nil
 }
 
-func (repo *transactionRepo) PutBatch(ctx context.Context, transaction *dao.Ss7CdrProc) error {
+func (repo *transactionRepo) PutBatch(ctx context.Context, transaction *dao.TranProc) error {
 	if transaction == nil {
 		return errors.New("transaction is nil")
 	}
@@ -92,7 +92,7 @@ func (repo *transactionRepo) RunBatchWriter(ctx context.Context) error {
 	ticker := time.NewTicker(batchFlushTimeout)
 	defer ticker.Stop()
 
-	batch := make([]dao.Ss7CdrProc, 0, batchSize)
+	batch := make([]dao.TranProc, 0, batchSize)
 
 	for {
 		select {
@@ -109,14 +109,14 @@ func (repo *transactionRepo) RunBatchWriter(ctx context.Context) error {
 	}
 }
 
-func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc) error {
+func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.TranProc) error {
 	batch, err := repo.conn.PrepareBatch(ctx, dao.GetRepoInsQuery())
 	if err != nil {
 		return err
 	}
 
-	for _, cdr := range buff {
-		if err = batch.Append(dto.GetTransactionFields(&cdr)...); err != nil {
+	for _, tr := range buff {
+		if err = batch.Append(dto.GetTransactionFields(&tr)...); err != nil {
 			_ = batch.Abort()
 			metrics.TransactionErrTotal.Inc()
 			return err
@@ -134,7 +134,7 @@ func (repo *transactionRepo) runPush(ctx context.Context, buff []dao.Ss7CdrProc)
 	return nil
 }
 
-func (repo *transactionRepo) flushBatch(ctx context.Context, batch []dao.Ss7CdrProc) []dao.Ss7CdrProc {
+func (repo *transactionRepo) flushBatch(ctx context.Context, batch []dao.TranProc) []dao.Ss7CdrProc {
 	if len(batch) == 0 {
 		return batch
 	}
