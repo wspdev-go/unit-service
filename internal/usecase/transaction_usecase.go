@@ -16,10 +16,7 @@ import (
 	"time"
 	"unit-service/internal/model/dto"
 	"unit-service/internal/repository"
-	"unit-service/logger"
 )
-
-const batchTimeout = 300
 
 type TransactionConnUsecase interface {
 	GetConnValid() bool
@@ -46,37 +43,7 @@ func NewTransactionUsecase(repo repository.TransactionRepo, refUc ReferenceReade
 
 func (u *transactionUsecase) Run(ctx context.Context) error {
 	// Control ClickHouse batch insert by time or count, for example, every 5 seconds or every 100 transactions
-
-	ticker := time.NewTicker(batchTimeout * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			if err := u.pushTransaction(ctx); err != nil {
-				logger.Error("error pushing transactions: %v", err)
-				u.repo.SetConnValid(false)
-			}
-		case <-u.repo.FlushCh():
-			if err := u.pushTransaction(ctx); err != nil {
-				logger.Error("error pushing transactions: %v", err)
-				u.repo.SetConnValid(false)
-			}
-		}
-	}
-}
-
-func (u *transactionUsecase) pushTransaction(ctx context.Context) error {
-
-	batchCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-
-	if err := u.repo.PushBatchTransaction(batchCtx); err != nil {
-		return err
-	}
-	return nil
+	return u.repo.RunBatchWriter(ctx)
 }
 
 func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.Transaction) error {
@@ -96,7 +63,7 @@ func (u *transactionUsecase) Handler(ctx context.Context, transaction *dto.Trans
 
 	procMess := dto.ConvertTransaction(transaction)
 
-	if err := u.repo.PutBatch(procMess); err != nil {
+	if err := u.repo.PutBatch(ctx, procMess); err != nil {
 		return err
 	}
 	return nil
